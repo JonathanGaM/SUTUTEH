@@ -1,0 +1,383 @@
+//admin_reuniones.jsx
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import axios from 'axios';
+import {
+  Container,
+  Box,
+  Button,
+  Paper,
+  Grid,
+  TextField,
+  IconButton,
+  TableContainer,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  TablePagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Typography,
+  Chip,
+  InputAdornment,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Snackbar,
+  Alert
+} from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/DeleteOutlined';
+import QrCodeIcon from '@mui/icons-material/QrCode';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import QRCode from 'react-qr-code';
+import { useNavigate } from 'react-router-dom';
+
+
+
+export default function AdminReuniones() {
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('Todos');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [meetings, setMeetings] = useState([]);
+  const navigate = useNavigate();
+  
+
+
+  useEffect(() => {
+  axios.get('http://localhost:3001/api/reuniones')
+    .then(resp => setMeetings(resp.data))
+    .catch(err => console.error('Error cargando reuniones', err));
+}, []);
+
+
+  // Snackbar
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+ 
+
+  const filtered = useMemo(() => {
+  const today = new Date().toISOString().slice(0, 10);
+  const q = search.toLowerCase();
+  return meetings
+    .filter(m => {
+      const title = (m.title  || '').toLowerCase();
+      const loc   = (m.location || '').toLowerCase();
+      return title.includes(q) || loc.includes(q);
+    })
+    .filter(m => {
+      if (filterStatus === 'Hoy')    return m.date === today;
+      if (filterStatus === 'Todos')  return true;
+      return m.status === filterStatus;
+    });
+}, [meetings, search, filterStatus]);
+
+
+  // Paginación
+  const handleChangePage = (_, newPage) => setPage(newPage);
+  const handleChangeRows = e => { setRowsPerPage(+e.target.value); setPage(0); };
+
+  // Formulario nuevo/editar
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [formData, setFormData] = useState({ title: '', date: '', time: '', location: '', description: '',type: 'Ordinaria', });
+
+  // Ver detalles
+  const [viewOpen, setViewOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
+
+  // QR dialog
+  const [qrOpen, setQrOpen] = useState(false);
+  const qrRef = useRef();
+  
+
+  const openForm = (meeting = null) => {
+    if (meeting) {
+      setEditingId(meeting.id);
+      setFormData({ ...meeting });
+    } else {
+      setEditingId(null);
+      setFormData({ title: '', date: '', time: '', location: '', description: '' ,type:        'Ordinaria' });
+    }
+    setFormOpen(true);
+  };
+  const closeForm = () => setFormOpen(false);
+  const handleFormChange = e => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+const handleSave = async () => {
+  try {
+    const payload = { ...formData };
+    const resp    = await axios.post('http://localhost:3001/api/reuniones', payload);
+    const nueva   = resp.data;  // { id, title, date:"2025-06-01T06:00:00.000Z", time:"15:30:00", ... }
+
+    // 1) Sacar solo "YYYY-MM-DD" de la date:
+    const fechaSolo = nueva.date.slice(0,10); // -> "2025-06-01"
+
+    // 2) Construir bien el Date de inicio:
+    const start = new Date(`${fechaSolo}T${nueva.time}`); // -> válida
+    const end   = new Date(start.getTime() + 60 * 60 * 1000);
+
+    // 3) Calcular status
+    const now = new Date();
+    let status;
+    if (now < start)                      status = 'Programada';
+    else if (now >= start && now < end)   status = 'En Curso';
+    else                                   status = 'Terminada';
+
+    // 4) Añadir el status al objeto antes de meterlo en state
+    const nuevaConStatus = { ...nueva, status };
+
+    setMeetings(prev => [nuevaConStatus, ...prev]);
+    showSnackbar('Reunión creada correctamente');
+    closeForm();
+    setPage(0);
+  } catch (err) {
+    console.error(err);
+    showSnackbar('Error al crear reunión', 'error');
+  }
+};
+// 2) Nuevo handle para actualizar
+const handleUpdate = async () => {
+  try {
+    const payload = { ...formData };
+    const resp = await axios.put(
+      `http://localhost:3001/api/reuniones/${editingId}`,
+      payload
+    );
+    // el backend ya retorna el status calculado
+    setMeetings(prev =>
+      prev.map(m => (m.id === editingId ? resp.data : m))
+    );
+    showSnackbar('Reunión actualizada correctamente');
+    closeForm();
+    setPage(0);
+  } catch (err) {
+    console.error(err);
+    showSnackbar('Error al actualizar reunión', 'error');
+  }
+};
+
+
+
+  const handleDelete = id => {
+    setMeetings(prev => prev.filter(m => m.id !== id));
+    showSnackbar('Reunión eliminada correctamente', 'info');
+  };
+  const openView = m => { setCurrent(m); setViewOpen(true); };
+  const closeView = () => setViewOpen(false);
+  const closeQr = () => setQrOpen(false);
+ 
+   const downloadQr = () => {
+    // 1) Coger el SVG
+    const svg = qrRef.current.querySelector('svg');    // 2) Serializarlo a texto
+    const serializer = new XMLSerializer();
+    const svgString = serializer.serializeToString(svg);
+    // 3) Crear un Blob y un URL para esa cadena SVG
+    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    // 4) Cargarlo en una imagen
+    const img = new Image();
+    img.onload = () => {
+      // 5) Dibujar en un canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      // 6) Convertir a PNG y disparar la descarga
+      const pngUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = pngUrl;
+      a.download = `qr_reunion_${current.id}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
+    img.src = url;
+  };
+
+
+   const openQr = async (meeting) => {
+    try {
+      // traemos la reunión completa (con el campo status calculado en el servidor)
+      const { data } = await axios.get(`http://localhost:3001/api/reuniones/${meeting.id}`);
+      setCurrent(data);
+      setQrOpen(true);
+    } catch (err) {
+      console.error("No pude cargar los datos de la reunión:", err);
+      showSnackbar("Error al cargar el QR", "error");
+    }
+  };
+
+  return (
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      {/* Barra de acciones */}
+      <Paper sx={{ p: 1.5, mb: 1.5, display: 'flex', gap: 1.5, flexWrap: 'wrap', transition: 'box-shadow 0.3s', '&:hover': { boxShadow: 8 } }}>
+        <TextField
+          label="Buscar reunión"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          size="small"
+          sx={{ flex: 1 }}
+          InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon /></InputAdornment> }}
+        />
+        <FormControl size="small">
+          <InputLabel>Filtrar</InputLabel>
+          <Select value={filterStatus} label="Filtrar" onChange={e => setFilterStatus(e.target.value)}>
+            <MenuItem value="Todos">Todos</MenuItem>
+            <MenuItem value="Programada">Programadas</MenuItem>
+            <MenuItem value="En Curso">En Curso</MenuItem>
+            <MenuItem value="Terminada">Terminadas</MenuItem>
+            <MenuItem value="Hoy">Hoy</MenuItem>
+          </Select>
+        </FormControl>
+        <Button variant="contained" onClick={() => openForm()} sx={{ py: 0.8 }}>Crear Nueva Reunión</Button>
+      </Paper>
+
+      {/* Tabla de reuniones */}
+      <Paper elevation={2} sx={{ mb: 1.5, transition: 'box-shadow 0.3s', '&:hover': { boxShadow: 10 } }}>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              {/* Cabecera gris */}
+              <TableRow sx={{ backgroundColor: ' rgb(2 135 209)' }}>
+                <TableCell>Título</TableCell>
+                <TableCell>Fecha</TableCell>
+                <TableCell>Hora</TableCell>
+                <TableCell>Tipo</TableCell>
+                <TableCell>Estado</TableCell>
+                <TableCell align="center">Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map(m => (
+                <TableRow key={m.id} hover sx={{ transition: 'transform 0.2s', '&:hover': { transform: 'scaleY(1.02)', bgcolor: 'action.hover' } }}>
+                  <TableCell>{m.title}</TableCell>
+                  <TableCell>{new Date(m.date).toLocaleDateString('es-ES', {    day:   'numeric',  month: 'long', year:  'numeric'})}  </TableCell>
+                  <TableCell>{`${m.time.slice(0,5)} hr`}</TableCell>
+
+                  <TableCell>{m.type}</TableCell>
+                  <TableCell>
+   <Chip
+      label={m.status}
+      size="small"
+      color={
+        m.status === 'Terminada'
+          ? 'error'
+          : m.status === 'En Curso'
+            ? 'success'
+            : 'info'
+      }
+    />
+  </TableCell>
+                  <TableCell align="center">
+                    <IconButton color="primary" onClick={()=>openView(m)} sx={{ p:0.5 }}><VisibilityIcon/></IconButton>
+                        {m.status === 'Programada' && (
+                     <IconButton color="primary" onClick={()=>openForm(m)} sx={{ p:0.5 }}>
+                              <EditIcon/>
+                            </IconButton>
+              )}
+                    <IconButton color="error" onClick={()=>handleDelete(m.id)} sx={{ p:0.5 }}><DeleteIcon/></IconButton>
+                    <IconButton sx={{ color:'gray',p:0.5 }} onClick={()=>openQr(m)}><QrCodeIcon/></IconButton>
+                     {(m.status === 'En Curso' || m.status === 'Terminada') && (
+                      <IconButton color="secondary" sx={{ p:0.5 }} onClick={() => navigate(`/estadistica_reuniones/${m.id}`)}>
+                     <AssessmentIcon/>
+                                </IconButton>
+                          )}         
+                 </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <TablePagination component="div" count={filtered.length} page={page} onPageChange={handleChangePage} rowsPerPage={rowsPerPage} onRowsPerPageChange={handleChangeRows} rowsPerPageOptions={[5,10,25]}/>
+      </Paper>
+
+      {/* Diálogo detalle */}
+      <Dialog open={viewOpen} onClose={closeView} fullWidth>
+        <DialogTitle>Detalle de Reunión</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">Título: {current?.title}</Typography>
+<Typography variant="body2">
+  Fecha:{' '}
+  {current?.date &&  new Date(current.date).toLocaleDateString('es-ES', {    day:   'numeric',     month: 'long',     year:  'numeric'   })}
+</Typography>
+<Typography variant="body2">  Hora:{' '}{current?.time &&   `${current.time.slice(0,5)} hr`}</Typography>
+          <Typography variant="body2">Tipo: {current?.type}</Typography>
+          <Typography variant="body2">Ubicación: {current?.location}</Typography>
+          <Typography variant="body2" sx={{ mt:1 }}>{current?.description}</Typography>
+        </DialogContent>
+        <DialogActions><Button onClick={closeView} size="small">Cerrar</Button></DialogActions>
+      </Dialog>
+
+      {/* Diálogo crear/editar */}
+      <Dialog open={formOpen} onClose={closeForm} fullWidth>
+        <DialogTitle>{editingId? 'Editar Reunión':'Nueva Reunión'}</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt:1 }}>
+            <Grid item xs={12} sm={6}><TextField label="Título" name="title" fullWidth size="small" value={formData.title} onChange={handleFormChange}/></Grid>
+            <Grid item xs={6} sm={3}><TextField label="Fecha" name="date" type="date" fullWidth size="small" InputLabelProps={{ shrink:true }} value={formData.date} onChange={handleFormChange}/></Grid>
+            <Grid item xs={6} sm={3}><TextField label="Hora" name="time" type="time" fullWidth size="small" InputLabelProps={{ shrink:true }} value={formData.time} onChange={handleFormChange}/></Grid>
+             <Grid item xs={12} sm={6}>
+       <FormControl fullWidth size="small">
+         <InputLabel>Tipo</InputLabel>
+         <Select
+           label="Tipo"
+           name="type"
+           value={formData.type}
+           onChange={handleFormChange}
+         >
+           <MenuItem value="Ordinaria">Ordinaria</MenuItem>
+           <MenuItem value="Extraordinaria">Extraordinaria</MenuItem>
+         </Select>
+       </FormControl>
+     </Grid>
+            <Grid item xs={12}><TextField label="Ubicación" name="location" fullWidth size="small" value={formData.location} onChange={handleFormChange}/></Grid>
+            <Grid item xs={12}><TextField label="Descripción" name="description" multiline rows={3} fullWidth size="small" value={formData.description} onChange={handleFormChange}/></Grid>
+          </Grid>
+        </DialogContent>
+<DialogActions>
+  <Button onClick={closeForm} size="small">Cancelar</Button>
+  <Button
+    variant="contained"
+    onClick={editingId ? handleUpdate : handleSave}
+    size="small"
+  >
+    {editingId ? 'Guardar Cambios' : 'Crear'}
+  </Button>
+</DialogActions>
+      </Dialog>
+
+      {/* Diálogo QR */}
+      <Dialog open={qrOpen} onClose={closeQr} fullWidth>
+        <DialogTitle>Código QR</DialogTitle>
+        <DialogContent><Box ref={qrRef} sx={{ display:'flex',justifyContent:'center',p:2 }}><QRCode
+              value={`http://localhost:3000/reuniones/${current?.id}`}
+              size={200}
+            /></Box></DialogContent>
+        <DialogActions><Button onClick={downloadQr} size="small">Descargar PNG</Button><Button onClick={closeQr} size="small">Cerrar</Button></DialogActions>
+      </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar anchorOrigin={{ vertical: 'top', horizontal: 'right' }} open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar(prev=>({...prev,open:false}))}>
+        <Alert onClose={() => setSnackbar(prev=>({...prev,open:false}))} severity={snackbar.severity} sx={{ width:'100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Container>
+  );
+}
