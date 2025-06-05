@@ -27,11 +27,18 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Slide
+  Slide,
+  Paper,
+  FormControl,
+ FormLabel,
+ RadioGroup,
+ Radio,
+ FormControlLabel as MuiFormControlLabel
 } from "@mui/material";
 import { deepOrange } from "@mui/material/colors";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -64,6 +71,9 @@ function Perfil() {
   // Estados para el diálogo de código de recuperación
   const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState("");
+
+
+  
 
   // Estilo para textos multilínea
   const multilineStyle = {
@@ -173,6 +183,49 @@ const handleSavePhoto = async () => {
     setAlertType("success");
     setOpenAlert(true);
   };
+  // -------------- Estados y lógica para encuestas/votaciones --------------
+  const [activeSurveys, setActiveSurveys] = useState([]);         // Lista de encuestas/votaciones activas sin responder
+  const [openPendingDialog, setOpenPendingDialog] = useState(false); // Controla el primer diálogo (aviso de pendientes)
+  const [openListDialog, setOpenListDialog] = useState(false);       // Controla el segundo diálogo (listado)
+ const [openSurveyDialog, setOpenSurveyDialog] = useState(false);
+ const [selectedSurveyDetails, setSelectedSurveyDetails] = useState(null);
+ const [answers, setAnswers] = useState({});
+
+  // Función para formatear fecha+hora en español (igual a la que ya usas en AdminEncuestas)
+  const formatDateTime = (dateStr, timeStr) => {
+    // Si dateStr viene como "2025-06-04T06:00:00.000Z", nos quedamos solo con "2025-06-04"
+    const datePart = typeof dateStr === 'string' && dateStr.includes('T')
+      ? dateStr.split('T')[0]
+      : dateStr;
+
+    const dt = new Date(`${datePart}T${timeStr}`);
+    if (isNaN(dt)) {
+      return 'Fecha inválida';
+    }
+    const fechaFormateada = dt.toLocaleDateString('es-ES', {
+      day:   'numeric',
+      month: 'long',
+      year:  'numeric'
+    });
+    const [hh, mm] = timeStr.split(':');
+    return `${fechaFormateada} a las ${hh}:${mm} hr`;
+  };
+
+  const handleOpenSurvey = async (id) => {
+  try {
+    // Traemos la lista completa (incluye preguntas y opciones anidadas)
+    const { data: all } = await axios.get("http://localhost:3001/api/encuestas-votaciones");
+    const survey = all.find((e) => e.id === id);
+    if (survey) {
+      setSelectedSurveyDetails(survey);
+      setOpenListDialog(false);
+      setOpenSurveyDialog(true);
+    }
+  } catch (err) {
+    console.error("Error al cargar detalles de encuesta:", err);
+  }
+};
+
 
   const renderTwoFactorSetup = () => (
     <Box sx={{ p: 2, border: "1px solid #ccc", borderRadius: 2, mt: 2, maxWidth: 300, mx: "auto" }}>
@@ -301,13 +354,27 @@ const handleSavePhoto = async () => {
   };
 
  // --- fetch del perfil usando la cookie JWT ---
- useEffect(() => {
+useEffect(() => {
+  // 1) Traemos datos del usuario
   axios.get("http://localhost:3001/api/perfilAgremiado")
-    .then(({ data }) => setUserData(data))
+    .then(({ data }) => {
+      setUserData(data);
+
+      // 2) Una vez que terminó de cargar userData, consultamos si hay encuestas/votaciones activas sin responder
+      return axios.get("http://localhost:3001/api/encuestas-votaciones/activas-usuario");
+    })
+    .then(({ data: pendientes }) => {
+      // Si vinieron encuestas/votaciones activas, abrimos el diálogo
+      if (Array.isArray(pendientes) && pendientes.length > 0) {
+        setActiveSurveys(pendientes);
+        setOpenPendingDialog(true);
+      }
+    })
     .catch(err => {
-      console.error("Error al cargar perfil", err);
+      console.error("Error al cargar perfil o encuestas activas:", err);
     });
 }, []);
+
 
 if (!userData) {
   return (
@@ -608,6 +675,140 @@ if (!userData) {
           {selectedTab === 3 && renderAccessSection()}
         </CardContent>
       </Card>
+            {/* ——— Primer diálogo: “Tienes encuestas/votaciones pendientes” ——— */}
+      <Dialog
+        open={openPendingDialog}
+        onClose={() => setOpenPendingDialog(false)}
+        aria-labelledby="pending-dialog-title"
+      >
+        <DialogTitle id="pending-dialog-title">
+          Encuestas/Votaciones Pendientes
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Tienes encuestas o votaciones pendientes por responder.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setOpenPendingDialog(false);
+              setOpenListDialog(true);
+            }}
+            variant="contained"
+            color="primary"
+          >
+            Contestar
+          </Button>
+          <Button
+            onClick={() => setOpenPendingDialog(false)}
+            variant="outlined"
+            color="secondary"
+          >
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ——— Segundo diálogo: Listado de encuestas/votaciones activas ——— */}
+      <Dialog
+        open={openListDialog}
+        onClose={() => setOpenListDialog(false)}
+        fullWidth
+        maxWidth="md"
+        aria-labelledby="list-dialog-title"
+      >
+        <DialogTitle id="list-dialog-title">
+          Encuestas y Votaciones Activas
+        </DialogTitle>
+        <DialogContent dividers>
+          {activeSurveys.map((item) => (
+            <Paper key={item.id} sx={{ p: 2, mb: 2 }}>
+              <Typography variant="subtitle1" fontWeight="bold">
+                {item.type} — {item.title}
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 1, mb: 1 }}>
+                {item.description}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Cierre: {formatDateTime(item.closeDate, item.closeTime)}
+              </Typography>
+              {/* Por ahora dejamos el botón sin funcionalidad extra; si quieres redirigir a un diálogo específico para contestar, reemplaza la lógica en onClick */}
+              <Box sx={{ textAlign: "right", mt: 1 }}>
+                <Button
+         variant="contained"
+         size="small"
+         onClick={() => handleOpenSurvey(item.id)}
+       >
+         Contestarlo
+      </Button>
+              </Box>
+            </Paper>
+          ))}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenListDialog(false)}>Cerrar</Button>
+        </DialogActions>
+      </Dialog>
+        {/* ——— Tercer diálogo: mostrar preguntas y opciones para responder ——— */}
+  <Dialog
+    open={openSurveyDialog}
+    onClose={() => setOpenSurveyDialog(false)}
+    fullWidth
+    maxWidth="md"
+    aria-labelledby="survey-dialog-title"
+  >
+    <DialogTitle id="survey-dialog-title">
+      {selectedSurveyDetails?.type} — {selectedSurveyDetails?.title}
+    </DialogTitle>
+    <DialogContent dividers>
+      {selectedSurveyDetails?.questions.map((q) => (
+        <FormControl
+          component="fieldset"
+          key={q.id}
+          sx={{ mb: 2, width: "100%" }}
+        >
+          <FormLabel component="legend" sx={{ mb: 1 }}>
+            {q.text}
+          </FormLabel>
+          <RadioGroup
+            value={answers[q.id] || ""}
+            onChange={(e) =>
+              setAnswers((prev) => ({
+                ...prev,
+                [q.id]: e.target.value,
+              }))
+            }
+          >
+            {q.options.map((opt) => (
+              <MuiFormControlLabel
+                key={opt.id}
+                value={opt.id.toString()}
+                control={<Radio />}
+                label={opt.text}
+              />
+            ))}
+          </RadioGroup>
+        </FormControl>
+      ))}
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={() => setOpenSurveyDialog(false)}>
+        Cancelar
+      </Button>
+      <Button
+        variant="contained"
+        onClick={() => {
+          // Por ahora solo cerramos; no enviamos nada
+          setOpenSurveyDialog(false);
+        }}
+      >
+        Enviar
+      </Button>
+    </DialogActions>
+  </Dialog>
+
+
 
       <Snackbar
         open={openAlert}

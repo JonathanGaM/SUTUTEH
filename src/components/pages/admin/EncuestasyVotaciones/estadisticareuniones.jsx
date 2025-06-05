@@ -23,7 +23,8 @@ export default function AsistenciaReuniones() {
   const { id: reunionId } = useParams();
   const [tab, setTab] = useState(0);
   const [meeting, setMeeting] = useState(null);
-  const [attendance, setAttendance] = useState([]);
+  const [asistieron, setAsistieron]       = useState([]);
+  const [noAsistieron, setNoAsistieron]   = useState([]);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const headerChartRef = useRef();
   const containerRef = useRef();
@@ -35,16 +36,18 @@ export default function AsistenciaReuniones() {
       .then(({ data }) => setMeeting(data))
       .catch(err => console.error('Error al cargar reunión', err));
 
-    // Lista de asistencia (campo `asistio: boolean`)
-    axios.get(`http://localhost:3001/api/reuniones/${reunionId}/asistencia`)
-      .then(({ data }) => setAttendance(data))
-      .catch(err => console.error('Error al cargar asistencia', err));
+   // Lista de quienes asistieron
+   axios.get(`http://localhost:3001/api/reuniones/${reunionId}/asistentes`)
+     .then(({ data }) => setAsistieron(data))
+     .catch(err => console.error('Error al cargar asistentes', err));
+
+   // Lista de quienes faltaron
+   axios.get(`http://localhost:3001/api/reuniones/${reunionId}/faltantes`)
+     .then(({ data }) => setNoAsistieron(data))
+     .catch(err => console.error('Error al cargar faltantes', err));
   }, [reunionId]);
 
-  // 2) Separar asistentes y ausentes
-  const asistieron    = attendance.filter(u => u.asistio);
-  const noAsistieron  = attendance.filter(u => !u.asistio);
-
+ 
   // Datos para el pastel
   const pieData = [
     { name: 'Asistieron',     value: asistieron.length },
@@ -53,8 +56,8 @@ export default function AsistenciaReuniones() {
 
   const columns = [
     { field: 'nombre',          headerName: 'Nombre',          flex: 1 },
-    { field: 'apellidoPaterno', headerName: 'Apellido Paterno', flex: 1 },
-    { field: 'apellidoMaterno', headerName: 'Apellido Materno', flex: 1 }
+    { field: 'apellido_paterno', headerName: 'Apellido Paterno', flex: 1 },
+    { field: 'apellido_materno', headerName: 'Apellido Materno', flex: 1 }
   ];
 
   const handleTabChange = (_, newValue) => setTab(newValue);

@@ -26,6 +26,7 @@ import DocumentosRegulatorios from '../pages/admin/DocumentosRegulatorios/admin_
 import GestionUsuarios from '../pages/admin/GestionUsuarios/GestionUsuarios';
 import GestionRoles from '../pages/admin/GestionUsuarios/GestionRoles';
 import EstadisticaReuniones from '../pages/admin/EncuestasyVotaciones/estadisticareuniones';
+import EstadisticasEncuestasVotos from "../pages/admin/EncuestasyVotaciones/EstadisticasEncuestasVotos";
 
 const AdminRoutes = () => {
   return (
@@ -44,6 +45,7 @@ const AdminRoutes = () => {
         
         {/* === ENCUESTAS Y VOTACIONES === */}
         <Route path="/admin_encuestas" element={<Encuestas />} />
+        <Route path="/estadisticas_encuestas_votos/:id" element={<EstadisticasEncuestasVotos />} />
         <Route path="/estadisticas_encuestas" element={<EstadisticasEnc />} />
         <Route path="/admin_votaciones" element={<Votaciones />} />
         <Route path="/estadistica_reuniones/:id" element={<EstadisticaReuniones />} />

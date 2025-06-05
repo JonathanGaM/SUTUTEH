@@ -539,7 +539,7 @@ function AgremiadosHeader() {
                       <ListItem disablePadding sx={{ pl: 4 }}>
                         <ListItemButton
                           component={Link}
-                          to="/actividades/reuniones"
+                          to="/reuniones"
                           onClick={() => setDrawerOpen(false)}
                           sx={hoverEffect}
                         >
@@ -549,7 +549,7 @@ function AgremiadosHeader() {
                       <ListItem disablePadding sx={{ pl: 4 }}>
                         <ListItemButton
                           component={Link}
-                          to="/actividades/encuestas_votaciones"
+                          to="/encuestas_votaciones"
                           onClick={() => setDrawerOpen(false)}
                           sx={hoverEffect}
                         >

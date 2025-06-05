@@ -107,6 +107,7 @@ function Layout() {
     "/admin_noticias",
     "/admin_preguntas",
     "/admin_encuestas",
+    "/estadisticas_encuestas_votos",
     "/estadisticas_encuestas",
     "/admin_votaciones",
     "/admin_reuniones",
