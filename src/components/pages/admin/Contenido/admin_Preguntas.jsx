@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Container,
   Typography,
@@ -33,73 +33,14 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import ReplyIcon from '@mui/icons-material/Reply';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Tooltip from '@mui/material/Tooltip';
+import CircularProgress from '@mui/material/CircularProgress';
+
 
 export default function AdminPreguntas() {
+  const [replyLoading, setReplyLoading] = useState(false);
   // Datos iniciales con arreglo de respuestas
-  const initialQuestions = [
-    {
-      id: 1,
-      registrado: false,
-      nombre: 'Juan',
-      apellidoP: 'Pérez',
-      apellidoM: 'Gómez',
-      telefono: '555-1111',
-      correo: 'juan.perez@mail.com',
-      date: '2025-04-15',
-      question: '¿Cuándo es la próxima asamblea general?',
-      responses: []
-    },
-    {
-      id: 2,
-      registrado: false,
-      nombre: 'María',
-      apellidoP: 'López',
-      apellidoM: 'Martínez',
-      telefono: '555-2222',
-      correo: 'maria.lopez@mail.com',
-      date: '2025-04-16',
-      question: '¿Cómo puedo cambiar mi cuota de contribución?',
-      responses: []
-    },
-    {
-      id: 3,
-      registrado: true,
-      nombre: 'Carlos',
-      apellidoP: 'Ruiz',
-      apellidoM: 'Domínguez',
-      telefono: '555-3333',
-      correo: 'carlos.ruiz@ejemplo.com',
-      date: '2025-04-17',
-      question: '¿Dónde consulto los estados financieros?',
-      responses: ['Puedes consultarlos en el módulo de Transparencia, sección Financiera.']
-    },
-    {
-      id: 4,
-      registrado: false,
-      nombre: 'Ana',
-      apellidoP: 'Gómez',
-      apellidoM: 'Sánchez',
-      telefono: '555-4444',
-      correo: 'ana.gomez@mail.com',
-      date: '2025-04-18',
-      question: '¿Hay capacitación prevista para mayo?',
-      responses: []
-    },
-    {
-      id: 5,
-      registrado: true,
-      nombre: 'Luis',
-      apellidoP: 'Torres',
-      apellidoM: 'Hernández',
-      telefono: '555-5555',
-      correo: 'luis.torres@ejemplo.com',
-      date: '2025-04-19',
-      question: '¿Cómo participo en la rifa?',
-      responses: ['Debes ir al módulo de Rifas y seleccionar tus números.']
-    }
-  ];
-
-  const [questions, setQuestions] = useState(initialQuestions);
+ 
+  const [questions, setQuestions] = useState([]);
   const [search, setSearch] = useState('');
   const [filterTipo, setFilterTipo] = useState('Todos');
   const [filterEstado, setFilterEstado] = useState('Todos');
@@ -186,22 +127,61 @@ export default function AdminPreguntas() {
     setReplyText('');
   };
 
-  const handleSaveReply = () => {
-    if (!replyText.trim()) return;
-    setQuestions(prev =>
-      prev.map(q =>
-        q.id === current.id
-          ? { ...q, responses: [...q.responses, replyText.trim()] }
-          : q
-      )
-    );
-    closeReply();
-    setSnackbar({
-      open: true,
-      message: 'Respuesta guardada',
-      severity: 'success'
+ 
+
+const handleSaveReply = () => {
+  if (!replyText.trim() || replyLoading) return;
+  setReplyLoading(true);
+
+  // 1) Decide qué endpoint usar según el tipo de usuario
+  const url = current.registrado
+    ? `http://localhost:3001/api/preguntas/${current.id}/responder-admin`
+    : `http://localhost:3001/api/preguntas/${current.id}/responder`;
+
+  // 2) Llama al endpoint correspondiente
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ respuesta: replyText.trim() })
+  })
+    .then(res => {
+      if (!res.ok) throw new Error('Falló al guardar');
+      return res.json();
+    })
+    .then(() => {
+      // 3) Actualiza tu estado local
+      setQuestions(prev =>
+        prev.map(q =>
+          q.id === current.id
+            ? {
+                ...q,
+                responses: [...q.responses, replyText.trim()],
+                estado: 'respondido'
+              }
+            : q
+        )
+      );
+      closeReply();
+      setSnackbar({
+        open: true,
+        message: 'Respuesta enviada correctamente',
+        severity: 'success'
+      });
+    })
+    .catch(err => {
+      console.error(err);
+      setSnackbar({
+        open: true,
+        message: 'Error al guardar respuesta',
+        severity: 'error'
+      });
+    })
+    .finally(() => {
+      setReplyLoading(false);
     });
-  };
+};
+
+
 
   const confirmDelete = id => {
     setDeleteId(id);
@@ -212,15 +192,47 @@ export default function AdminPreguntas() {
     setDeleteId(null);
   };
 
-  const handleDelete = id => {
-    setQuestions(prev => prev.filter(q => q.id !== id));
-    setConfirmOpen(false);
-    setSnackbar({
-      open: true,
-      message: 'Pregunta eliminada',
-      severity: 'info'
-    });
+ const handleDelete = id => {
+    fetch(`http://localhost:3001/api/preguntas/${id}`, { method: 'DELETE' })
+     .then(res => {
+        if (!res.ok) throw new Error('No se pudo eliminar');
+        return res.json();
+      })
+      .then(() => {
+        setQuestions(prev => prev.filter(q => q.id !== id));
+        setConfirmOpen(false);
+        setSnackbar({ open:true, message:'Pregunta eliminada', severity:'info' });
+      })
+      .catch(err => {
+        console.error(err);
+        setSnackbar({ open:true, message:'Error al eliminar', severity:'error' });
+      });
   };
+useEffect(() => {
+  // Función que carga preguntas
+  const loadQuestions = () => {
+    fetch('http://localhost:3001/api/preguntas', {
+      headers: { 'Content-Type': 'application/json' }
+    })
+      .then(res => res.json())
+      .then(data => setQuestions(data))
+      .catch(err => {
+        console.error('Error cargando preguntas:', err);
+        setSnackbar({ open:true, message:'No se pudo cargar preguntas', severity:'error' });
+      });
+  };
+
+  // Carga inicial
+  loadQuestions();
+
+  // Vuelve a cargar cada 15 segundos
+  const intervalId = setInterval(loadQuestions, 15000);
+
+  // Limpieza al desmontar
+  return () => clearInterval(intervalId);
+}, []);
+
+
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -268,7 +280,9 @@ export default function AdminPreguntas() {
         <TableContainer>
           <Table>
             <TableHead>
-              <TableRow>
+         <TableRow sx={{ backgroundColor: "rgb(183, 205, 239)" }}>
+                
+                
                 <TableCell>Nombre completo</TableCell>
                 <TableCell sortDirection={orderBy === 'date' ? order : false}>
                   <TableSortLabel
@@ -296,6 +310,7 @@ export default function AdminPreguntas() {
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map(q => (
                     <TableRow key={q.id} hover>
+                      
                       <TableCell>{`${q.nombre} ${q.apellidoP} ${q.apellidoM}`}</TableCell>
                       <TableCell>{q.date}</TableCell>
                       <TableCell>{q.question}</TableCell>
@@ -436,9 +451,16 @@ export default function AdminPreguntas() {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeReply}>Cancelar</Button>
-          <Button variant="contained" onClick={handleSaveReply}>
-            Guardar
-          </Button>
+          <Button
+   variant="contained"
+   onClick={handleSaveReply}
+   disabled={replyLoading || !replyText.trim()}
+ >
+   {replyLoading
+     ? <CircularProgress size={20} color="inherit" />
+     : 'Enviar'
+   }
+ </Button>
         </DialogActions>
       </Dialog>
 

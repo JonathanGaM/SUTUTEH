@@ -42,16 +42,53 @@ const Contacto = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = () => {
-    setSubmitAttempted(true);
-    if (Object.values(formData).some((field) => field.trim() === "")) {
-      setError(true);
-      setSuccess(false);
-      return;
+const handleSubmit = async () => {
+  setSubmitAttempted(true);
+
+  // Validación local
+  if (Object.values(formData).some((f) => f.trim() === "")) {
+    setError(true);
+    setSuccess(false);
+    return;
+  }
+  setError(false);
+
+  const payload = {
+    nombre:          formData.nombre.trim(),
+    apellidoPaterno: formData.apellidoPaterno.trim(),
+    apellidoMaterno: formData.apellidoMaterno.trim(),
+    telefono:        formData.telefono.trim(),
+    email:           formData.email.trim(),
+    mensaje:         formData.mensaje.trim(),
+  };
+
+  try {
+    const res = await fetch("http://localhost:3001/api/preguntas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Error al enviar la pregunta");
     }
+  // Simulación de éxito inmediato
+  console.log("Enviando datos...", payload);
+
+  // Simulamos un retraso artificial
+  await new Promise(res => setTimeout(res, 500));
+    // Éxito: limpiamos sólo 'mensaje', reseteamos validación y disparamos alerta
+    setFormData(prev => ({ ...prev, mensaje: "" }));
+    setSubmitAttempted(false);
     setError(false);
     setSuccess(true);
-  };
+  } catch (e) {
+    console.error(e);
+    setError(true);
+    setSuccess(false);
+  }
+};
+
 
   return (
     <Box
@@ -233,6 +270,7 @@ const Contacto = () => {
                   size="small"
                   label="Mensaje"
                   name="mensaje"
+                  value={formData.mensaje}
                   onChange={handleChange}
                   multiline
                   rows={3}
@@ -258,7 +296,15 @@ const Contacto = () => {
 
       <Snackbar
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        sx={{ top: 180 }}
+        sx={theme => ({
+   // Offset hacía abajo solo si tienes un AppBar fijo de, digamos, 64px
+   top: {
+     xs: theme.spacing(10),   // móvil: 80px
+     md: theme.spacing(13),    // escritorio: 64px
+   },
+   right: theme.spacing(2),    // siempre con un pequeño margen del borde
+   zIndex: theme.zIndex.drawer + 1, // por encima de cualquier Drawer/AppBar
+ })}
         open={error}
         autoHideDuration={3000}
         onClose={() => setError(false)}
@@ -269,7 +315,15 @@ const Contacto = () => {
       </Snackbar>
       <Snackbar
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        sx={{ top: 180 }}
+        sx={theme => ({
+   // Offset hacía abajo solo si tienes un AppBar fijo de, digamos, 64px
+   top: {
+     xs: theme.spacing(10),   // móvil: 80px
+     md: theme.spacing(13),    // escritorio: 64px
+   },
+   right: theme.spacing(2),    // siempre con un pequeño margen del borde
+   zIndex: theme.zIndex.drawer + 1, // por encima de cualquier Drawer/AppBar
+ })}
         open={success}
         autoHideDuration={3000}
         onClose={() => setSuccess(false)}

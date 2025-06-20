@@ -1,5 +1,5 @@
 // src/pages/agremiado/Contacto.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   TextField,
@@ -10,9 +10,6 @@ import {
   Paper,
   Typography,
   Link,
-  List,
-  ListItem,
-  ListItemText,
   InputAdornment
 } from "@mui/material";
 import { Email, Phone, LocationOn, Facebook } from "@mui/icons-material";
@@ -23,10 +20,9 @@ const Contacto = () => {
   const [error, setError] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // Estado para simular el chat
-  const [chatMessages, setChatMessages] = useState([
-    { sender: "system", text: "Bienvenido al chat. ¿En qué podemos ayudarte?" }
-  ]);
+  const [chatMessages, setChatMessages] = useState([]);
+
+ 
 
   // Estilos para efecto en foco (verde claro)
   const inputStyles = {
@@ -42,27 +38,73 @@ const Contacto = () => {
     setMensaje(e.target.value);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSubmitAttempted(true);
     if (mensaje.trim() === "") {
       setError(true);
       setSuccess(false);
       return;
     }
-    // Agrega el mensaje del usuario
-    const newMessage = { sender: "user", text: mensaje.trim() };
-    setChatMessages((prev) => [...prev, newMessage]);
-    setMensaje("");
-    setError(false);
-    setSuccess(true);
-    setSubmitAttempted(false); // Reiniciamos la validación al enviar correctamente
 
-    // Simula una respuesta automática después de 1 segundo
-    setTimeout(() => {
-      const autoReply = { sender: "system", text: "Gracias por tu pregunta. Pronto te responderemos." };
-      setChatMessages((prev) => [...prev, autoReply]);
-    }, 1000);
+    try {
+      const res = await fetch("http://localhost:3001/api/preguntas/registrado", {
+        method: "POST",
+        credentials: "include", // para enviar la cookie authToken
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mensaje: mensaje.trim() })
+      });
+
+      if (!res.ok) {
+        throw new Error("Error al enviar la pregunta");
+      }
+
+      const data = await res.json();
+      // Agrega el mensaje del usuario al chat
+      setChatMessages(prev => [
+        ...prev,
+        { sender: "user", text: mensaje.trim() },
+        { sender: "system", text: "Gracias por tu pregunta. Pronto te responderemos." }
+      ]);
+
+      // Limpia y resetea estados
+      setMensaje("");
+      setError(false);
+      setSuccess(true);
+      setSubmitAttempted(false);
+
+    } catch (e) {
+      console.error(e);
+      setError(true);
+      setSuccess(false);
+    }
   };
+useEffect(() => {
+  const fetchMyQAs = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/api/preguntas/usuario", {
+        credentials: "include"
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      // Transformamos al formato de chat: preguntas y luego respuestas
+       const msgs = data
+        .slice()            // no mutamos el original
+        .reverse()          // preguntas más nuevas arriba
+        .flatMap(item => [
+          { sender: "user",   text: item.question },
+          ...item.responses.map(r => ({ sender: "system", text: r }))
+        ]);
+      setChatMessages(msgs);
+      
+    } catch {
+      console.error("No pude cargar tus preguntas");
+    }
+  };
+
+  fetchMyQAs();
+  const id = setInterval(fetchMyQAs, 15000);
+  return () => clearInterval(id);
+}, []);
 
   return (
     <Box
@@ -177,11 +219,13 @@ const Contacto = () => {
             </Typography>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
               {chatMessages.map((msg, index) => (
+                
                 <Box
                   key={index}
                   sx={{
                     alignSelf: msg.sender === "user" ? "flex-end" : "flex-start",
-                    backgroundColor: msg.sender === "user" ? "#c8e6c9" : "#eeeeee",
+                    backgroundColor:
+                      msg.sender === "user" ? "#c8e6c9" : "#eeeeee",
                     color: "black",
                     px: 2,
                     py: 1,

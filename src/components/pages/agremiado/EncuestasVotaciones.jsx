@@ -1,179 +1,103 @@
-// src/pages/agremiado/EncuestasVotaciones.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  Container,
-  Typography,
-  Box,
-  Tabs,
-  Tab,
-  Paper,
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableContainer
+  Container, Typography, Box, Paper,
+  TableContainer, Table, TableHead, TableRow, TableCell, TableBody,
+  Chip, TablePagination, TableSortLabel
 } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import axios from "axios";
 
-// Componente TabPanel para manejar cada pestaña
-function TabPanel(props) {
-  const { children, value, index, ...other } = props;
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`tabpanel-${index}`}
-      aria-labelledby={`tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ p: 2 }}>{children}</Box>}
-    </div>
-  );
-}
+export default function EncuestasVotaciones() {
+  const [rows, setRows] = useState([]);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [order, setOrder] = useState("asc");
 
-function a11yProps(index) {
-  return {
-    id: `tab-${index}`,
-    "aria-controls": `tabpanel-${index}`,
-  };
-}
+  // Combina contestadas y activas (no contestadas)
+ useEffect(() => {
+  axios.get("http://localhost:3001/api/encuestas-votaciones/usuario/estado", { withCredentials: true })
+    .then(({ data }) => {
+      setRows(data);
+    })
+    .catch(console.error);
+}, []);
 
-// Definición de las columnas usando flex para que se adapten al ancho del contenedor.
-const columns = [
-  { field: "title", headerName: "Título", flex: 1, minWidth: 150 },
-  { field: "description", headerName: "Descripción", flex: 2, minWidth: 200 },
-  { field: "closingDate", headerName: "Fecha de Cierre", flex: 1, minWidth: 150 }
-];
 
-const EncuestasVotaciones = () => {
-  const [value, setValue] = useState(0);
+  // Ordenar por estado
+  const sortedRows = React.useMemo(() => {
+    return [...rows].sort((a, b) => {
+      if (a.estado < b.estado) return order === "asc" ? -1 : 1;
+      if (a.estado > b.estado) return order === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [rows, order]);
 
-  // Datos de ejemplo para las encuestas y votaciones contestadas
-  const answeredData = [
-    {
-      id: 1,
-      title: "Encuesta de Satisfacción Laboral",
-      description: "Queremos conocer tu experiencia y propuestas para mejorar el ambiente laboral.",
-      closingDate: "2023-09-30",
-    },
-    {
-      id: 2,
-      title: "Votación: Nueva Imagen Corporativa",
-      description: "Elige el logo que representará a la organización el próximo año.",
-      closingDate: "2023-10-05",
-    },
-  ];
-
-  // Datos de ejemplo para las encuestas y votaciones no contestadas
-  const unansweredData = [
-    {
-      id: 3,
-      title: "Encuesta sobre Beneficios",
-      description: "Opina sobre los beneficios actuales y qué cambios te gustaría ver.",
-      closingDate: "2023-10-10",
-    },
-    {
-      id: 4,
-      title: "Votación: Elección de Delegados",
-      description: "Participa en la elección de delegados para el próximo periodo.",
-      closingDate: "2023-09-25",
-    },
-  ];
-
-  const handleChange = (event, newValue) => {
-    setValue(newValue);
-  };
+const formatDate = (iso) => {
+  if (!iso || typeof iso !== "string") return "";
+  const [datePart] = iso.split("T");       // "2025-06-20"
+  const [year, month, day] = datePart.split("-");
+  return `${day}/${month}/${year}`;
+};
 
   return (
     <Container maxWidth="md" sx={{ mt: 15, mb: 4 }}>
-      {/* Encabezado */}
       <Box sx={{ textAlign: "center", mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: "bold" }}>
+        <Typography variant="h4" fontWeight="bold">
           Encuestas y Votaciones
         </Typography>
-        <Box
-          sx={{
-            height: 2,
-            width: 120,
-            bgcolor: "green",
-            mx: "auto",
-            mt: 1,
-            mb: 2,
-          }}
+        <Box sx={{ height: 2, width: 120, bgcolor: "green", mx: "auto", my: 1 }} />
+      </Box>
+
+      <Paper>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: "rgb(183, 205, 239)" }}>
+                <TableCell>Título</TableCell>
+                <TableCell>Descripción</TableCell>
+                <TableCell>Fecha de Cierre</TableCell>
+                <TableCell sortDirection={order}>
+                  <TableSortLabel
+                    active
+                    direction={order}
+                    onClick={() => setOrder(prev => prev === "asc" ? "desc" : "asc")}
+                  >
+                    Estado
+                  </TableSortLabel>
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {sortedRows
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map(r => (
+                  <TableRow key={r.id} hover>
+                    <TableCell>{r.title}</TableCell>
+                    <TableCell>{r.description}</TableCell>
+                    <TableCell>{formatDate(r.closeDate)}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={r.estado}
+                        size="small"
+                        color={r.estado === "Contestada" ? "primary" : "warning"}
+                        sx={{ color: "white" }}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        <TablePagination
+          component="div"
+          count={rows.length}
+          page={page}
+          onPageChange={(_, p) => setPage(p)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={e => { setRowsPerPage(+e.target.value); setPage(0); }}
+          rowsPerPageOptions={[5, 10, 25]}
         />
-      </Box>
-
-      {/* Cortinilla italiana (Tabs) */}
-      <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
-        <Tabs
-          value={value}
-          onChange={handleChange}
-          aria-label="Historial de Encuestas y Votaciones"
-          variant="fullWidth"
-        >
-          <Tab
-            label="Contestadas"
-            {...a11yProps(0)}
-            sx={{
-              fontSize: "0.8rem",
-              color: value === 0 ? "blue" : "gray",
-              backgroundColor: value === 0 ? "#e3f2fd" : "transparent"
-            }}
-          />
-          <Tab
-            label="No contestadas"
-            {...a11yProps(1)}
-            sx={{
-              fontSize: "0.8rem",
-              color: value === 1 ? "red" : "gray",
-              backgroundColor: value === 1 ? "#ffebee" : "transparent"
-            }}
-          />
-        </Tabs>
-      </Box>
-
-      {/* Panel para "Contestadas" */}
-      <TabPanel value={value} index={0}>
-        <Paper sx={{ height: 400, width: "100%" }}>
-          <DataGrid
-            rows={answeredData}
-            columns={columns}
-            initialState={{
-              pagination: {
-                paginationModel: {
-                  pageSize: 5,
-                },
-              },
-            }}
-            pageSizeOptions={[5]}
-            checkboxSelection
-            disableRowSelectionOnClick
-          />
-        </Paper>
-      </TabPanel>
-
-      {/* Panel para "No contestadas" */}
-      <TabPanel value={value} index={1}>
-        <Paper sx={{ height: 400, width: "100%" }}>
-          <DataGrid
-            rows={unansweredData}
-            columns={columns}
-            initialState={{
-              pagination: {
-                paginationModel: {
-                  pageSize: 5,
-                },
-              },
-            }}
-            pageSizeOptions={[5]}
-            checkboxSelection
-            disableRowSelectionOnClick
-          />
-        </Paper>
-      </TabPanel>
+      </Paper>
     </Container>
   );
-};
-
-export default EncuestasVotaciones;
+}

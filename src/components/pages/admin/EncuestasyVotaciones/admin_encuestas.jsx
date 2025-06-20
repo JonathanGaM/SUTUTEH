@@ -133,7 +133,7 @@ export default function AdminEncuestas() {
         publicationDate: item.publicationDate.split('T')[0],
         closeDate:       item.closeDate.split('T')[0],
         publicationTime: item.publicationTime,
-        closeDate: item.closeDate,
+        closeDate: item.closeDate.split('T')[0],
         closeTime: item.closeTime,
         questions: item.questions.map(q => ({
           text: q.text,
@@ -248,9 +248,8 @@ const formatDateTime = (dateStr, timeStr) => {
     }
   }, [formData.questions.length]);
 
-  // --- Guardar nueva encuesta/votación ---
- 
-    const handleSave = async () => {
+ // --- Crear o editar encuesta/votación ---
+  const handleSave = async () => {
     const {
       type,
       title,
@@ -262,7 +261,7 @@ const formatDateTime = (dateStr, timeStr) => {
       questions
     } = formData;
 
-    // Validación mínima
+    // validaciones idénticas a antes...
     if (
       !title ||
       !publicationDate ||
@@ -274,7 +273,6 @@ const formatDateTime = (dateStr, timeStr) => {
       showSnackbar('Completa todos los campos y agrega al menos una pregunta', 'error');
       return;
     }
-    // Validar que cada pregunta tenga texto y al menos 2 opciones no vacías
     for (let q of questions) {
       if (!q.text.trim()) {
         showSnackbar('Cada pregunta debe tener texto', 'error');
@@ -283,61 +281,92 @@ const formatDateTime = (dateStr, timeStr) => {
       if (q.options.length < 2) {
         showSnackbar('Cada pregunta necesita al menos 2 opciones', 'error');
         return;
-      }
+     }
       for (let opt of q.options) {
         if (!opt.trim()) {
           showSnackbar('Las opciones no pueden estar vacías', 'error');
           return;
-        }
+       }
       }
     }
- try {
-      // 1) Preparamos el cuerpo exactamente como el backend lo espera:
-      const payload = {
-        type,
-        title,
-        description,
-        publication_date: publicationDate,   // ojo al nombre de campo
-        publication_time: publicationTime,
-        close_date: closeDate,
-        close_time: closeTime,
-        questions: questions.map(q => ({
-          text: q.text.trim(),
-          options: q.options.map(opt => opt.trim())
-        }))
-      };
+    // Preparamos el payload igual que antes
+   const payload = {
+      type,
+      title,
+      description,
+    publication_date: publicationDate,
+      publication_time: publicationTime,
+      close_date: closeDate,
+      close_time: closeTime,
+      questions: questions.map(q => ({
+        text: q.text.trim(),
+        options: q.options.map(opt => opt.trim())
+      }))
+   };
+    try {
+      // Si editingId existe → PUT, si no → POST
+      const url = editingId
+        ? `http://localhost:3001/api/encuestas-votaciones/${editingId}`
+       : 'http://localhost:3001/api/encuestas-votaciones/completo';
+      const method = editingId ? 'PUT' : 'POST';
 
-      // 2) Llamamos al endpoint “/completo”
-      const res = await fetch('http://localhost:3001/api/encuestas-votaciones/completo', {
-        method: 'POST',
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-        credentials: 'include' // si tu servidor requiere cookies / auth
+        credentials: 'include'
       });
 
-      if (!res.ok) {
+     if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || 'Error al crear encuesta/votación');
+        throw new Error(err.error || 'Error al guardar encuesta/votación');
       }
 
-      const created = await res.json();
-      // 3) Una vez exitoso, agregamos el resultado al listado
-      setEncuestasList(prev => [created, ...prev]);
-      showSnackbar('Encuesta/Votación creada exitosamente', 'success');
+      showSnackbar(
+        editingId
+         ? 'Encuesta/Votación actualizada exitosamente'
+          : 'Encuesta/Votación creada exitosamente',
+        'success'
+      );
       closeForm();
+
+      // Refrescamos la lista
+      const listRes = await fetch(
+        'http://localhost:3001/api/encuestas-votaciones',
+        { method: 'GET', credentials: 'include' }
+      );
+      if (listRes.ok) {
+        const data = await listRes.json();
+        setEncuestasList(data);
+      }
     } catch (error) {
       console.error(error);
       showSnackbar(error.message, 'error');
     }
-  
-    
   };
 
   // --- Eliminar elemento ---
-  const handleDelete = id => {
-    setEncuestasList(prev => prev.filter(item => item.id !== id));
-    showSnackbar('Elemento eliminado', 'success');
-  };
+const handleDelete = async id => {
+   try {
+     const res = await fetch(
+       `http://localhost:3001/api/encuestas-votaciones/${id}`,
+       {
+         method: 'DELETE',
+         credentials: 'include'
+       }
+     );
+     if (!res.ok) {
+       const err = await res.json();
+       throw new Error(err.error || 'Error al eliminar');
+     }
+     // quita del listado solo si la API respondió OK
+     setEncuestasList(prev => prev.filter(item => item.id !== id));
+     showSnackbar('Encuesta/votación eliminada correctamente', 'success');
+   } catch (error) {
+     console.error(error);
+     showSnackbar(error.message, 'error');
+   }
+ };
 
   // --- Ver detalles ---
   const handleView = item => {

@@ -38,6 +38,7 @@ import {
 import { deepOrange } from "@mui/material/colors";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import { useNavigate } from 'react-router-dom';
 
 
 const Transition = React.forwardRef(function Transition(props, ref) {
@@ -51,7 +52,9 @@ axios.defaults.withCredentials = true;
 function Perfil() {
   // Estado para almacenar los datos reales del usuario (inicialmente null, se carga desde el API)
   const [userData, setUserData] = useState(null);
-
+  const [openSuccessDialog, setOpenSuccessDialog] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+const navigate = useNavigate();
   // Estados para foto de perfil y alertas
   const [photo, setPhoto] = useState("");
   const [preview, setPreview] = useState("");
@@ -374,6 +377,25 @@ useEffect(() => {
       console.error("Error al cargar perfil o encuestas activas:", err);
     });
 }, []);
+// Cada vez que openSuccessDialog pase a true, cierra el diálogo solo tras 4 segundos
+useEffect(() => {
+ if (!openSuccessDialog) return;
+
+  const timer = setTimeout(() => {
+    setOpenSuccessDialog(false);
+    if (activeSurveys.length > 0) {
+      // quedan pendientes → volvemos al listado
+      setOpenListDialog(true);
+    } else {
+      // ¡listo! sin pendientes → redirigimos a "/reuniones"
+      navigate('/encuestas_votaciones');
+    }
+  }, 2500);
+
+  return () => clearTimeout(timer);
+}, [openSuccessDialog, activeSurveys, navigate]);
+
+
 
 
 if (!userData) {
@@ -393,6 +415,9 @@ if (!userData) {
       </Container>
     );
   }
+
+
+
 
   return (
     <Container maxWidth="md" sx={{ mt: 15, mb: 8 }}>
@@ -678,7 +703,8 @@ if (!userData) {
             {/* ——— Primer diálogo: “Tienes encuestas/votaciones pendientes” ——— */}
       <Dialog
         open={openPendingDialog}
-        onClose={() => setOpenPendingDialog(false)}
+        disableEscapeKeyDown
+  onClose={() => {}}
         aria-labelledby="pending-dialog-title"
       >
         <DialogTitle id="pending-dialog-title">
@@ -700,20 +726,15 @@ if (!userData) {
           >
             Contestar
           </Button>
-          <Button
-            onClick={() => setOpenPendingDialog(false)}
-            variant="outlined"
-            color="secondary"
-          >
-            Cerrar
-          </Button>
+          
         </DialogActions>
       </Dialog>
 
       {/* ——— Segundo diálogo: Listado de encuestas/votaciones activas ——— */}
       <Dialog
         open={openListDialog}
-        onClose={() => setOpenListDialog(false)}
+        disableEscapeKeyDown
+  onClose={() => {}}
         fullWidth
         maxWidth="md"
         aria-labelledby="list-dialog-title"
@@ -746,14 +767,13 @@ if (!userData) {
             </Paper>
           ))}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenListDialog(false)}>Cerrar</Button>
-        </DialogActions>
+        
       </Dialog>
         {/* ——— Tercer diálogo: mostrar preguntas y opciones para responder ——— */}
   <Dialog
     open={openSurveyDialog}
-    onClose={() => setOpenSurveyDialog(false)}
+    disableEscapeKeyDown
+  onClose={() => {}}
     fullWidth
     maxWidth="md"
     aria-labelledby="survey-dialog-title"
@@ -793,20 +813,102 @@ if (!userData) {
       ))}
     </DialogContent>
     <DialogActions>
-      <Button onClick={() => setOpenSurveyDialog(false)}>
-        Cancelar
-      </Button>
-      <Button
+       <Button
+    variant="outlined"
+    onClick={() => {
+      setOpenSurveyDialog(false);
+      setOpenListDialog(true);
+    }}
+  >
+    Cancelar
+  </Button>
+    <Button
         variant="contained"
-        onClick={() => {
-          // Por ahora solo cerramos; no enviamos nada
-          setOpenSurveyDialog(false);
-        }}
+         onClick={async () => {
+         try {
+           // 1) Construimos el arreglo de respuestas:
+           const payload = {
+             encuesta_id: selectedSurveyDetails.id,
+             respuestas: Object.entries(answers).map(
+               ([preguntaId, opcionId]) => ({
+                 pregunta_id: Number(preguntaId),
+                 opcion_id: Number(opcionId),
+               })
+             ),
+           };
+
+           // 2) Hacemos POST al endpoint de respuestas:
+           await axios.post(
+             "http://localhost:3001/api/encuestas-votaciones/respuestas",
+             payload
+           );
+
+           
+
+           // 4) Sacamos esta encuesta de la lista de pendientes:
+           const nuevosPendientes = activeSurveys.filter(
+             (e) => e.id !== selectedSurveyDetails.id
+           );
+           setActiveSurveys(nuevosPendientes);
+           // 5) Cerramos el diálogo de la encuesta concreta:
+           setOpenSurveyDialog(false);
+           setAnswers({});
+
+           // 6) Preparamos el diálogo de éxito:
+           setSuccessMessage(
+             `${selectedSurveyDetails.type} enviada correctamente`
+           );
+           setOpenSuccessDialog(true);
+         } catch (err) {
+           console.error("Error al enviar respuestas:", err);
+           setAlertType("error");
+           setAlertMessage("No se pudieron enviar las respuestas.");
+           setOpenAlert(true);
+         }
+       }}
       >
         Enviar
       </Button>
     </DialogActions>
   </Dialog>
+{/* ——— Diálogo de éxito ——— */}
+<Dialog
+   open={openSuccessDialog}
+  // ya no hay botón, así que onClose solo se dispara desde el timer
+  aria-labelledby="success-dialog-title"
+  PaperProps={{ sx: { textAlign: "center" } }}
+>
+  <DialogTitle id="success-dialog-title">
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      {/* Puedes usar cualquier ícono de éxito; aquí un ejemplo genérico */}
+      <Box
+        component="span"
+        sx={{
+          display: "inline-block",
+          width: 24,
+          height: 24,
+          bgcolor: "green",
+          borderRadius: "50%",
+          textAlign: "center",
+          color: "white",
+          fontSize: "1rem",
+          lineHeight: "24px",
+        }}
+      >
+        ✓
+      </Box>
+      <Typography component="span" fontWeight="bold">
+        ¡Éxito!
+      </Typography>
+    </Box>
+  </DialogTitle>
+  <DialogContent>
+    <Typography>
+      {successMessage}
+    </Typography>
+  </DialogContent>
+  
+</Dialog>
 
 
 

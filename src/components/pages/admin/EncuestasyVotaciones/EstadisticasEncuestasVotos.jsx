@@ -1,6 +1,6 @@
 // src/pages/admin/EstadisticasEncuestasVotos.jsx
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Container,
@@ -38,153 +38,126 @@ import {
 export default function EstadisticasEncuestasVotos() {
   const { id } = useParams();
   const [loading, setLoading] = useState(true);
-  const [item, setItem] = useState(null);
-  const [chartData, setChartData] = useState([]);
-  const [colors, setColors] = useState([]);
+  const [data, setData] = useState(null);
+
+  // Colores
+  const pieColors = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+  const barColors = ['#0088FE', '#FF6384', '#00C49F', '#FFBB28', '#FF8042', '#A28FD0'];
 
   useEffect(() => {
-    // ──────────────────────────────────────────────────────────────────────────
-    // Simulación de fetch de encuesta/votación según ID.
-    // Reemplaza este bloque con tu llamada real a la API.
-    // ──────────────────────────────────────────────────────────────────────────
-    setTimeout(() => {
-      if (id === '1') {
-        // Ejemplo: “Votación”
-        setItem({
-          id: '1',
-          type: 'Votación',
-          title: 'Elección de Delegado 2025',
-          publicationDate: '2025-06-01',
-          publicationTime: '10:00',
-          // votos por opción
-          votes: [
-            { name: 'Pedro', value: 45 },
-            { name: 'Juan', value: 50 },
-            { name: 'Ricardo', value: 80 },
-            { name: 'No votaron', value: 15 }
-          ]
-        });
-      } else {
-        // Ejemplo: “Encuesta”
-        setItem({
-          id: '2',
-          type: 'Encuesta',
-          title: 'Encuesta de Satisfacción 2025',
-          publicationDate: '2025-06-01',
-          publicationTime: '10:00',
-          // estructura de preguntas con conteos por opción
-          questions: [
-            {
-              text: 'Pregunta 1',
-              options: [
-                { name: 'Opción A', value: 20 },
-                { name: 'Opción B', value: 15 },
-                { name: 'Opción C', value: 10 },
-                { name: 'Opción D', value: 5 }
-              ]
-            },
-            {
-              text: 'Pregunta 2',
-              options: [
-                { name: 'Opción A', value: 10 },
-                { name: 'Opción B', value: 25 },
-                { name: 'Opción C', value: 10 },
-                { name: 'Opción D', value: 5 }
-              ]
-            },
-            {
-              text: 'Pregunta 3',
-              options: [
-                { name: 'Opción A', value: 15 },
-                { name: 'Opción B', value: 10 },
-                { name: 'Opción C', value: 15 },
-                { name: 'Opción D', value: 10 }
-              ]
-            }
-          ]
-        });
-      }
-      setLoading(false);
-    }, 500);
+    fetch(`http://localhost:3001/api/encuestas-votaciones/${id}/estadisticas`, {
+      credentials: 'include'
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Error al cargar estadísticas');
+        return res.json();
+      })
+      .then(json => {
+        setData(json);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
   }, [id]);
 
-  useEffect(() => {
-    if (!item) return;
-
-    if (item.type === 'Votación') {
-      // Preparar datos para el pastel
-      setChartData(item.votes.map(v => ({ name: v.name, value: v.value })));
-      // Colores fijos para la votación
-      setColors(['#0088FE', '#00C49F', '#FFBB28', '#FF8042']);
-    } else {
-      // Preparar datos para el gráfico de barras apiladas
-      const transformed = item.questions.map(q => {
-        const obj = { pregunta: q.text };
-        q.options.forEach(opt => {
-          obj[opt.name] = opt.value;
-        });
-        return obj;
-      });
-      setChartData(transformed);
-      // Colores para cada opción
-      setColors(['#0088FE', '#FF6384', '#00C49F', '#FFBB28']);
+  // Preparo chartData y optionKeys para "Encuesta"
+  const { chartData, optionKeys } = useMemo(() => {
+    if (!data || data.encuesta.type !== 'Encuesta') {
+      return { chartData: [], optionKeys: [] };
     }
-  }, [item]);
+    const preguntas = data.preguntas || [];
+    // 1) Unir todas las opciones de todas las preguntas
+    const allKeys = [];
+    preguntas.forEach(p =>
+      p.opciones.forEach(o => {
+        if (!allKeys.includes(o.opcionText)) {
+          allKeys.push(o.opcionText);
+        }
+      })
+    );
+    // 2) Construir chartData: un objeto por pregunta con valor 0 para claves ausentes
+    const cd = preguntas.map(p => {
+      const obj = { pregunta: p.preguntaText };
+      allKeys.forEach(key => {
+        const found = p.opciones.find(o => o.opcionText === key);
+        obj[key] = found ? found.votos : 0;
+      });
+      return obj;
+    });
+    return { chartData: cd, optionKeys: allKeys };
+  }, [data]);
 
-  if (loading || !item) {
+  if (loading) {
     return (
-      <Container maxWidth="sm" sx={{ mt: 4, mb: 4, textAlign: 'center' }}>
+      <Container maxWidth="sm" sx={{ mt: 4, textAlign: 'center' }}>
         <CircularProgress />
       </Container>
     );
   }
+  if (!data) {
+    return (
+      <Container maxWidth="sm" sx={{ mt: 4, textAlign: 'center' }}>
+        <Typography color="error">No se encontraron estadísticas.</Typography>
+      </Container>
+    );
+  }
+
+  const { encuesta, totalRespondieron, preguntas } = data;
+  const isVotacion = encuesta.type === 'Votación';
 
   return (
     <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
       <Paper elevation={3} sx={{ p: 3 }}>
-        {/* Título */}
         <Typography variant="h5" gutterBottom>
-          {item.title}
+          {encuesta.title}
         </Typography>
-
-        {/* Fecha y hora de publicación */}
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Publicada el {item.publicationDate} a las {item.publicationTime}
+          Publicada el {encuesta.publicationDate} a las {encuesta.publicationTime}
+        </Typography>
+        <Typography variant="body2" sx={{ mb: 3 }}>
+          Total de participantes: <strong>{totalRespondieron}</strong>
         </Typography>
 
-        {item.type === 'Votación' ? (
-          // ─────────────────────────────────────────────────
-          // Gráfica de pastel para “Votación”
-          // ─────────────────────────────────────────────────
-          <Box sx={{ width: '100%', height: 350 }}>
-            <PieResponsiveContainer>
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  label
-                >
-                  {chartData.map((entry, index) => (
-                    <PieCell
-                      key={`slice-${index}`}
-                      fill={colors[index % colors.length]}
-                    />
-                  ))}
-                </Pie>
-                <PieTooltip />
-                <PieLegend verticalAlign="bottom" height={36} />
-              </PieChart>
-            </PieResponsiveContainer>
-          </Box>
+        {isVotacion ? (
+          preguntas.map((p, pi) => (
+            <Box key={p.preguntaId} sx={{ mb: 4 }}>
+              <Typography variant="h6" gutterBottom>
+                {p.preguntaText}
+              </Typography>
+              <Box sx={{ width: '100%', height: 300 }}>
+                <PieResponsiveContainer>
+                  <PieChart>
+                    <Pie
+                      data={p.opciones.map(o => ({
+                        name: o.opcionText,
+                        value: o.votos
+                      }))}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      label
+                    >
+                      {p.opciones.map((o, idx) => (
+                        <PieCell
+                          key={o.opcionId}
+                          fill={pieColors[idx % pieColors.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <PieTooltip />
+                    <PieLegend verticalAlign="bottom" height={36} />
+                  </PieChart>
+                </PieResponsiveContainer>
+              </Box>
+            </Box>
+          ))
         ) : (
-          // ─────────────────────────────────────────────────
-          // Gráfico de barras apiladas para “Encuesta”
-          // ─────────────────────────────────────────────────
           <>
+            {/* Un único bar chart apilado */}
             <Box sx={{ width: '100%', height: 400 }}>
               <BarResponsiveContainer>
                 <BarChart
@@ -196,35 +169,33 @@ export default function EstadisticasEncuestasVotos() {
                   <YAxis />
                   <BarTooltip />
                   <BarLegend verticalAlign="bottom" height={36} />
-                  {/* Una <Bar> por opción; la propiedad stackId="a" las apila */}
-                  <Bar dataKey="Opción A" stackId="a" fill={colors[0]} name="Opción A" />
-                  <Bar dataKey="Opción B" stackId="a" fill={colors[1]} name="Opción B" />
-                  <Bar dataKey="Opción C" stackId="a" fill={colors[2]} name="Opción C" />
-                  <Bar dataKey="Opción D" stackId="a" fill={colors[3]} name="Opción D" />
+                  {optionKeys.map((key, idx) => (
+                    <Bar
+                      key={key}
+                      dataKey={key}
+                      stackId="a"
+                      fill={barColors[idx % barColors.length]}
+                      name={key}
+                    />
+                  ))}
                 </BarChart>
               </BarResponsiveContainer>
             </Box>
 
-            {/* ───────────────────────────────────────────────────────────── */}
-            {/* Sección de tabla de estadísticas para Encuesta                */}
-            {/* ───────────────────────────────────────────────────────────── */}
             <Divider sx={{ my: 3 }} />
 
-            {item.questions.map((q, qidx) => {
-              // Calcular total de respuestas para esta pregunta
-              const total = q.options.reduce((sum, opt) => sum + opt.value, 0);
-              // Determinar la moda y porcentaje para cada opción
-              const moda = q.options.reduce((prev, curr) =>
-                curr.value > prev.value ? curr : prev
+            {/* Tablas de detalle */}
+            {preguntas.map((p, idx) => {
+              const total = p.opciones.reduce((s, o) => s + o.votos, 0);
+              const moda = p.opciones.reduce(
+                (mx, o) => (o.votos > mx.votos ? o : mx),
+                { votos: -1 }
               );
               return (
-                <Box key={qidx} sx={{ mb: 4 }}>
-                  {/* Título de la pregunta */}
+                <Box key={p.preguntaId} sx={{ mb: 4 }}>
                   <Typography variant="h6" gutterBottom>
-                    {q.text}
+                    {p.preguntaText}
                   </Typography>
-
-                  {/* Tabla de detalle de opciones */}
                   <TableContainer component={Paper} sx={{ mb: 1 }}>
                     <Table size="small">
                       <TableHead>
@@ -235,28 +206,31 @@ export default function EstadisticasEncuestasVotos() {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {q.options.map((opt, oidx) => {
-                          const porcentaje =
-                            total > 0 ? ((opt.value / total) * 100).toFixed(1) : 0;
+                        {p.opciones.map(o => {
+                          const pct =
+                            total > 0
+                              ? ((o.votos / total) * 100).toFixed(1)
+                              : '0.0';
                           return (
-                            <TableRow key={oidx}>
-                              <TableCell>{opt.name}</TableCell>
-                              <TableCell align="right">{opt.value}</TableCell>
-                              <TableCell align="right">{porcentaje}%</TableCell>
+                            <TableRow key={o.opcionId}>
+                              <TableCell>{o.opcionText}</TableCell>
+                              <TableCell align="right">{o.votos}</TableCell>
+                              <TableCell align="right">{pct}%</TableCell>
                             </TableRow>
                           );
                         })}
                       </TableBody>
                     </Table>
                   </TableContainer>
-
-                  {/* Nota: moda */}
                   <Typography variant="body2" color="text.secondary">
-                    Moda: <strong>{moda.name}</strong> ({moda.value} respuestas,{' '}
-                    {total > 0
-                      ? ((moda.value / total) * 100).toFixed(1)
-                      : 0}
-                    %)
+                    Moda:{' '}
+                    <strong>
+                      {moda.opcionText} ({moda.votos} votos,{' '}
+                      {total > 0
+                        ? ((moda.votos / total) * 100).toFixed(1)
+                        : 0}
+                      %)
+                    </strong>
                   </Typography>
                 </Box>
               );
