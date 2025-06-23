@@ -1,5 +1,5 @@
 // src/pages/admin/AdminRifas.jsx
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Container,
   Box,
@@ -38,6 +38,8 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 
+// URL base de la API
+const API_BASE_URL = 'http://localhost:3001/api';
 
 // Transition for Dialog
 const Transition = React.forwardRef((props, ref) => <Slide direction="up" ref={ref} {...props} />);
@@ -61,29 +63,63 @@ export default function AdminRifas() {
     precio: '',
     ubicacion: '',
     boletosDisponibles: '',
+    fechaPublicacion: '',
+    fechaCierre: '',
     productos: []
   });
   const fileInput = useRef();
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+  // Estado para vista
+  const [openView, setOpenView] = useState(false);
+  const [currentView, setCurrentView] = useState(null);
+
+  // Cargar rifas al montar
+  useEffect(() => {
+    fetchRifas();
+  }, []);
+
+  // Obtener rifas
+  const fetchRifas = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/rifas`);
+      const result = await response.json();
+      
+      if (result.success) {
+        const rifasFormateadas = result.data.map(rifa => ({
+          id: rifa.id,
+          titulo: rifa.titulo,
+          descripcion: rifa.descripcion,
+          fecha: rifa.fecha,
+          hora: rifa.hora,
+          precio: rifa.precio,
+          ubicacion: rifa.ubicacion,
+          boletosDisponibles: rifa.boletos_disponibles,
+          fechaPublicacion: rifa.fecha_publicacion,
+          fechaCierre: rifa.fecha_cierre,
+          fotoRifa: rifa.foto_rifa,
+          productos: rifa.productos || []
+        }));
+        setRifas(rifasFormateadas);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setSnackbar({ open: true, message: 'Error al cargar rifas', severity: 'error' });
+    }
+  };
 
   // Handlers for search and pagination
   const handleSearch = e => setSearch(e.target.value);
   const handleFilterBoletos = e => setFilterBoletos(e.target.value);
   const handleChangePage = (_, newPage) => setPage(newPage);
   const handleChangeRows = e => { setRowsPerPage(+e.target.value); setPage(0); };
-  // 1) Estado para abrir/cerrar el Dialog de vista
-  const [openView, setOpenView] = useState(false);
 
-  // 2) Estado para guardar la rifa actual que quieres “ver”
-  const [currentView, setCurrentView] = useState(null);
-
-  // 3) Función que abre el Dialog de vista y le inyecta la rifa clickeada
+  // Funciones para vista
   const openViewDialog = (rifa) => {
     setCurrentView(rifa);
     setOpenView(true);
   };
 
-  // 4) Función que cierra el Dialog de vista
   const closeView = () => {
     setOpenView(false);
     setCurrentView(null);
@@ -107,10 +143,22 @@ export default function AdminRifas() {
   const openFormDialog = rifa => {
     if (rifa) {
       setCurrentEdit(rifa.id);
-      setFormData(rifa);
+      setFormData({
+        fotoRifa: rifa.fotoRifa,
+        titulo: rifa.titulo,
+        descripcion: rifa.descripcion,
+        fecha: rifa.fecha,
+        hora: rifa.hora,
+        precio: rifa.precio,
+        ubicacion: rifa.ubicacion,
+        boletosDisponibles: rifa.boletosDisponibles,
+        fechaPublicacion: rifa.fechaPublicacion,
+        fechaCierre: rifa.fechaCierre,
+        productos: rifa.productos || []
+      });
     } else {
       setCurrentEdit(null);
-      setFormData({ fotoRifa: null, titulo: '', descripcion: '', fecha: '', hora: '', precio: '', ubicacion: '', boletosDisponibles: '', productos: [] });
+      setFormData({ fotoRifa: null, titulo: '', descripcion: '', fecha: '', hora: '', precio: '', ubicacion: '', boletosDisponibles: '', fechaPublicacion: '', fechaCierre: '', productos: [] });
     }
     setOpenForm(true);
   };
@@ -122,11 +170,12 @@ export default function AdminRifas() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   const handleFileChange = e => {
-    const fileUrl = URL.createObjectURL(e.target.files[0]);
-    setFormData(prev => ({ ...prev, fotoRifa: fileUrl }));
+    if (e.target.files[0]) {
+      setFormData(prev => ({ ...prev, fotoRifa: e.target.files[0] }));
+    }
   };
 
-  // Product handlers (optional)
+  // Product handlers
   const addProduct = () => {
     setFormData(prev => ({
       ...prev,
@@ -146,24 +195,139 @@ export default function AdminRifas() {
     }));
   };
 
+  const handleProductFileChange = (e, productId) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Crear preview inmediato
+    const fileUrl = URL.createObjectURL(file);
+    updateProduct(productId, 'foto', fileUrl);
+    updateProduct(productId, 'fotoFile', file); // Guardar el archivo para enviar luego
+  };
+
   // Save or update raffle
-  const handleSave = () => {
-    let updated;
-    if (currentEdit != null) {
-      updated = rifas.map(r => r.id === currentEdit ? { ...formData, id: currentEdit } : r);
-      setSnackbar({ open: true, message: 'Rifa actualizada', severity: 'success' });
-    } else {
-      updated = [{ ...formData, id: Date.now() }, ...rifas];
-      setSnackbar({ open: true, message: 'Rifa creada', severity: 'success' });
+  const handleSave = async () => {
+    try {
+      const formDataToSend = new FormData();
+      
+      formDataToSend.append('titulo', formData.titulo);
+      formDataToSend.append('descripcion', formData.descripcion);
+      formDataToSend.append('fecha', formData.fecha);
+      formDataToSend.append('hora', formData.hora);
+      formDataToSend.append('precio', formData.precio);
+      formDataToSend.append('ubicacion', formData.ubicacion);
+      formDataToSend.append('boletos_disponibles', formData.boletosDisponibles);
+      formDataToSend.append('fecha_publicacion', formData.fechaPublicacion || '');
+      formDataToSend.append('fecha_cierre', formData.fechaCierre || '');
+      
+      if (formData.fotoRifa && typeof formData.fotoRifa !== 'string') {
+        formDataToSend.append('foto_rifa', formData.fotoRifa);
+      }
+      
+      // Subir fotos de productos primero si hay archivos nuevos
+      const productosConFotos = await Promise.all(
+        formData.productos.map(async (producto) => {
+          if (producto.fotoFile) {
+            try {
+              const formDataFile = new FormData();
+              formDataFile.append('foto_producto', producto.fotoFile);
+
+              const response = await fetch(`${API_BASE_URL}/rifas/producto/foto`, {
+                method: 'POST',
+                body: formDataFile
+              });
+
+              const result = await response.json();
+
+              if (result.success) {
+                return {
+                  titulo: producto.titulo,
+                  descripcion: producto.descripcion || '',
+                  foto: result.data.url
+                };
+              }
+            } catch (error) {
+              console.error('Error al subir foto de producto:', error);
+            }
+          }
+          return {
+            titulo: producto.titulo,
+            descripcion: producto.descripcion || '',
+            foto: producto.foto && !producto.foto.startsWith('blob:') ? producto.foto : null
+          };
+        })
+      );
+      
+      // Convertir productos a string para que el backend lo pueda parsear
+      const productosString = JSON.stringify(productosConFotos);
+      formDataToSend.append('productos', productosString);
+
+      const url = currentEdit != null 
+        ? `${API_BASE_URL}/rifas/${currentEdit}`
+        : `${API_BASE_URL}/rifas`;
+      
+      const method = currentEdit != null ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        body: formDataToSend
+      });
+
+      console.log('Status de respuesta:', response.status);
+      
+      // Verificar si la respuesta es JSON válida
+      const contentType = response.headers.get('content-type');
+      console.log('Content-Type:', contentType);
+      
+      let result;
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const textResult = await response.text();
+        console.log('Respuesta como texto:', textResult);
+        result = { success: false, message: 'Error del servidor' };
+      }
+      
+      console.log('Respuesta del servidor:', result);
+
+      if (result.success) {
+        setSnackbar({
+          open: true, 
+          message: currentEdit != null ? 'Rifa actualizada' : 'Rifa creada', 
+          severity: 'success'
+        });
+        closeForm();
+        fetchRifas();
+      } else {
+        setSnackbar({ open: true, message: result.message || 'Error al guardar', severity: 'error' });
+      }
+    } catch (error) {
+      console.error('Error completo:', error);
+      setSnackbar({ open: true, message: 'Error de conexión', severity: 'error' });
     }
-    setRifas(updated);
-    closeForm();
   };
 
   // Delete raffle
-  const handleDelete = id => {
-    setRifas(prev => prev.filter(r => r.id !== id));
-    setSnackbar({ open: true, message: 'Rifa eliminada', severity: 'error' });
+  const handleDelete = async (id) => {
+    if (!window.confirm('¿Estás seguro de eliminar esta rifa?')) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/rifas/${id}`, {
+        method: 'DELETE'
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSnackbar({ open: true, message: 'Rifa eliminada', severity: 'success' });
+        fetchRifas();
+      } else {
+        setSnackbar({ open: true, message: result.message || 'Error al eliminar', severity: 'error' });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setSnackbar({ open: true, message: 'Error de conexión', severity: 'error' });
+    }
   };
 
   return (
@@ -230,12 +394,10 @@ export default function AdminRifas() {
           <Table>
             <TableHead>
               <TableRow sx={{ backgroundColor: "rgb(2 135 209)" }}>
-                {/* <TableCell sx={{ color: '#fff' }}>Foto</TableCell> */}
                 <TableCell sx={{ color: "#fff" }}>Título</TableCell>
                 <TableCell sx={{ color: "#fff" }}>Fecha</TableCell>
                 <TableCell sx={{ color: "#fff" }}>Hora</TableCell>
                 <TableCell sx={{ color: "#fff" }}>Precio</TableCell>
-                {/* <TableCell sx={{ color: '#fff' }}>Ubicación</TableCell> */}
                 <TableCell sx={{ color: "#fff" }}># Boletos</TableCell>
                 <TableCell align="center" sx={{ color: "#fff" }}>
                   Acciones
@@ -248,24 +410,12 @@ export default function AdminRifas() {
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                 .map((row) => (
                   <TableRow key={row.id} hover>
-                    {/* <TableCell>
-                {row.fotoRifa && (
-                  <Box
-                    component="img"
-                    src={row.fotoRifa}
-                    alt="rifa"
-                    sx={{ height: 40, borderRadius: 1 }}
-                  />
-                )}
-              </TableCell> */}
                     <TableCell>{row.titulo}</TableCell>
                     <TableCell>{row.fecha}</TableCell>
                     <TableCell>{row.hora}</TableCell>
                     <TableCell>${row.precio}</TableCell>
-                    {/* <TableCell>{row.ubicacion}</TableCell> */}
                     <TableCell>{row.boletosDisponibles}</TableCell>
                     <TableCell align="center">
-                      {/* Editar: icono azul */}
                       <IconButton
                         size="small"
                         onClick={() => openFormDialog(row)}
@@ -274,7 +424,6 @@ export default function AdminRifas() {
                         <EditIcon />
                       </IconButton>
 
-                      {/* Eliminar: mantiene el color por defecto de “error” */}
                       <IconButton
                         size="small"
                         onClick={() => handleDelete(row.id)}
@@ -283,7 +432,6 @@ export default function AdminRifas() {
                         <DeleteIcon />
                       </IconButton>
 
-                      {/* Ver: icono verde */}
                       <IconButton
                         size="small"
                         onClick={() => openViewDialog(row)}
@@ -292,13 +440,10 @@ export default function AdminRifas() {
                         <VisibilityIcon />
                       </IconButton>
 
-                      {/* Estadísticas: fondo morado y icono blanco */}
-
                       <IconButton
                         color="secondary"
                         sx={{ p: 0.5 }}
                         onClick={() => {
-                          // Aquí iría la lógica (por ahora solo un console.log)
                           console.log("Mostrar estadísticas para", row.id);
                         }}
                       >
@@ -336,10 +481,6 @@ export default function AdminRifas() {
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ pt: 1 }}>
-            {/* ----------------------------------------------------
-         FOTO DE RIFA: aquí envolvemos la img en un contenedor
-         con ancho 100% y alto fijo (200px, por ejemplo).
-         ---------------------------------------------------- */}
             <Grid item xs={12} sm={6}>
               <Button component="label" startIcon={<PhotoCamera />} fullWidth>
                 Foto de Rifa
@@ -348,15 +489,15 @@ export default function AdminRifas() {
                   type="file"
                   hidden
                   name="fotoRifa"
+                  accept="image/*"
                   onChange={handleFileChange}
                 />
               </Button>
 
-              {/* Contenedor fijo  */}
               <Box
                 sx={{
                   width: "100%",
-                  height: 200, // ← altura fija
+                  height: 200,
                   mt: 1,
                   borderRadius: 1,
                   border: "1px solid rgba(0,0,0,0.23)",
@@ -370,7 +511,7 @@ export default function AdminRifas() {
                 {formData.fotoRifa ? (
                   <Box
                     component="img"
-                    src={formData.fotoRifa}
+                    src={typeof formData.fotoRifa === 'string' ? formData.fotoRifa : URL.createObjectURL(formData.fotoRifa)}
                     alt="Foto de Rifa"
                     sx={{
                       width: "100%",
@@ -386,9 +527,6 @@ export default function AdminRifas() {
               </Box>
             </Grid>
 
-            {/* ----------------------------------------------------
-         RESTO DE CAMPOS (Título, Descripción, Fecha, etc.)
-         ---------------------------------------------------- */}
             <Grid item xs={12} sm={6}>
               <TextField
                 label="Título"
@@ -471,10 +609,31 @@ export default function AdminRifas() {
                 onChange={handleFormChange}
               />
             </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                label="Fecha de Publicación"
+                type="date"
+                name="fechaPublicacion"
+                fullWidth
+                size="small"
+                InputLabelProps={{ shrink: true }}
+                value={formData.fechaPublicacion}
+                onChange={handleFormChange}
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                label="Fecha de Cierre"
+                type="date"
+                name="fechaCierre"
+                fullWidth
+                size="small"
+                InputLabelProps={{ shrink: true }}
+                value={formData.fechaCierre}
+                onChange={handleFormChange}
+              />
+            </Grid>
 
-            {/* ----------------------------------------------------
-         Nuevo bloque para “Productos a Rifar”
-         ---------------------------------------------------- */}
             <Grid item xs={12}>
               <Typography variant="subtitle1">Productos a Rifar</Typography>
               <Button size="small" startIcon={<AddIcon />} onClick={addProduct}>
@@ -510,9 +669,6 @@ export default function AdminRifas() {
                   <DeleteIcon fontSize="small" />
                 </IconButton>
 
-                {/* --------------------------------------------------
-             FOTO DEL PRODUCTO: igual envolvemos en un Box fijo
-             -------------------------------------------------- */}
                 <Grid item xs={12} sm={3}>
                   <Button
                     component="label"
@@ -523,19 +679,14 @@ export default function AdminRifas() {
                     <input
                       type="file"
                       hidden
-                      onChange={(e) =>
-                        updateProduct(
-                          prod.id,
-                          "foto",
-                          URL.createObjectURL(e.target.files[0])
-                        )
-                      }
+                      accept="image/*"
+                      onChange={(e) => handleProductFileChange(e, prod.id)}
                     />
                   </Button>
                   <Box
                     sx={{
                       width: "100%",
-                      height: 150, // ← altura fija para cada foto de producto
+                      height: 150,
                       mt: 1,
                       borderRadius: 1,
                       border: "1px solid rgba(0,0,0,0.23)",
@@ -611,9 +762,6 @@ export default function AdminRifas() {
         <DialogTitle>Ver Rifa</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ pt: 1 }}>
-            {/* ----------------------------------------------------
-         FOTO DE RIFA (solo lectura), contenedor fijo 200px
-         ---------------------------------------------------- */}
             <Grid item xs={12} sm={6}>
               <Box
                 sx={{
@@ -648,9 +796,6 @@ export default function AdminRifas() {
               </Box>
             </Grid>
 
-            {/* ----------------------------------------------------
-         CAMPOS PRINCIPALES (solo lectura)
-         ---------------------------------------------------- */}
             <Grid item xs={12} sm={6}>
               <TextField
                 label="Título"
@@ -716,10 +861,25 @@ export default function AdminRifas() {
                 InputProps={{ readOnly: true }}
               />
             </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                label="Fecha de Publicación"
+                value={currentView?.fechaPublicacion || ""}
+                fullWidth
+                size="small"
+                InputProps={{ readOnly: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={4}>
+              <TextField
+                label="Fecha de Cierre"
+                value={currentView?.fechaCierre || ""}
+                fullWidth
+                size="small"
+                InputProps={{ readOnly: true }}
+              />
+            </Grid>
 
-            {/* ----------------------------------------------------
-         LISTA DE PRODUCTOS A RIFAR (solo lectura)
-         ---------------------------------------------------- */}
             <Grid item xs={12}>
               <Typography variant="subtitle1">Productos a Rifar</Typography>
             </Grid>
@@ -744,7 +904,6 @@ export default function AdminRifas() {
                   borderRadius: 1,
                 }}
               >
-                {/* FOTO DEL PRODUCTO (solo lectura), contenedor fijo 150px */}
                 <Grid item xs={12} sm={3}>
                   <Box
                     sx={{
