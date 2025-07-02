@@ -1,4 +1,4 @@
-  import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
 import { styled, useTheme } from '@mui/material/styles';
 import Box from '@mui/material/Box';
@@ -24,6 +24,7 @@ import { Link, useLocation } from 'react-router-dom';
 import LogoutIcon from '@mui/icons-material/Logout';
 
 // Importación de iconos para cada módulo principal
+import DashboardIcon from '@mui/icons-material/Dashboard'; // NUEVO ICONO PARA DASHBOARD
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import DescriptionIcon from '@mui/icons-material/Description';
 import HowToVoteIcon from '@mui/icons-material/HowToVote';
@@ -43,6 +44,9 @@ import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
 import SettingsIcon from '@mui/icons-material/Settings';
 import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
 import axios from "axios";
+
+import { API_URL } from "../../config/apiConfig";
+
 
 // Logo que se muestra en el Drawer
 
@@ -164,6 +168,13 @@ const DrawerHeader = styled('div')(({ theme }) => ({
 
 // Estructura del menú
 const menuItems = [
+  // NUEVO ITEM PARA DASHBOARD PRINCIPAL
+  {
+    title: "DASHBOARD",
+    icon: <DashboardIcon />,
+    path: "/panel-admin", // Ruta directa sin subItems
+    isMain: true // Marcador especial para identificar el dashboard principal
+  },
   {
     title: "PERFIL DE EMPRESA",
     icon: <AccountCircleIcon />,
@@ -249,7 +260,7 @@ export default function AdminHeader({ children }) {
 
   useEffect(() => {
       axios
-         .get("http://localhost:3001/api/datos-empresa")
+         .get(`${API_URL}/api/datos-empresa`)
          .then(({ data }) => {
            if (data.length) setCompany(data[0]);
          })
@@ -302,7 +313,7 @@ export default function AdminHeader({ children }) {
               variant="h6"
               noWrap
               component={Link}
-              to="/"
+              to="/panel-admin" // CAMBIADO: Ahora el título lleva al dashboard
               sx={{
                 fontWeight: 700,
                 letterSpacing: ".2rem",
@@ -351,8 +362,6 @@ export default function AdminHeader({ children }) {
         <Divider />
 
         {/* Logo y Título "SUTUTEH" en la parte superior del Drawer */}
-       
-
         <Box sx={{ textAlign: "center", py: 2 }}>
           <Box
             component="img"
@@ -380,45 +389,79 @@ export default function AdminHeader({ children }) {
         <List>
           {menuItems.map((module) => (
             <React.Fragment key={module.title}>
-              <ListItem disablePadding>
-                <ListItemButton
-                  onClick={() => toggleMenu(module.title)}
-                  sx={{
-                    backgroundColor: module.subItems.some(
-                      (sub) => sub.path === location.pathname
-                    )
-                      ? "#e3f2fd"
-                      : "inherit",
-                    borderLeft: module.subItems.some(
-                      (sub) => sub.path === location.pathname
-                    )
-                      ? "4px solid #424242"
-                      : "none",
-                    transition: "background-color 0.3s, transform 0.3s",
-                    "&:hover": {
-                      backgroundColor: "#e3f2fd",
-                      transform: "scale(1.02)",
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ color: "#424242" }}>
-                    {module.icon}
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={module.title}
-                    primaryTypographyProps={{
-                      variant: "body2",
-                      color: "#424242",
+              {/* NUEVO: Manejo especial para el dashboard principal */}
+              {module.isMain ? (
+                <ListItem disablePadding>
+                  <ListItemButton
+                    component={Link}
+                    to={module.path}
+                    sx={{
+                      backgroundColor: location.pathname === module.path ? "#e3f2fd" : "inherit",
+                      borderLeft: location.pathname === module.path ? "4px solid #424242" : "none",
+                      transition: "background-color 0.3s, transform 0.3s",
+                      "&:hover": {
+                        backgroundColor: "#e3f2fd",
+                        transform: "scale(1.02)",
+                      },
                     }}
-                  />
-                  {expandedMenus[module.title] ? (
-                    <ExpandLess sx={{ color: "#424242" }} />
-                  ) : (
-                    <ExpandMore sx={{ color: "#424242" }} />
-                  )}
-                </ListItemButton>
-              </ListItem>
-              {expandedMenus[module.title] &&
+                  >
+                    <ListItemIcon sx={{ color: "#424242" }}>
+                      {module.icon}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={module.title}
+                      primaryTypographyProps={{
+                        variant: "body2",
+                        color: "#424242",
+                        fontWeight: location.pathname === module.path ? "bold" : "normal",
+                      }}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              ) : (
+                // Manejo normal para módulos con subItems
+                <ListItem disablePadding>
+                  <ListItemButton
+                    onClick={() => toggleMenu(module.title)}
+                    sx={{
+                      backgroundColor: module.subItems?.some(
+                        (sub) => sub.path === location.pathname
+                      )
+                        ? "#e3f2fd"
+                        : "inherit",
+                      borderLeft: module.subItems?.some(
+                        (sub) => sub.path === location.pathname
+                      )
+                        ? "4px solid #424242"
+                        : "none",
+                      transition: "background-color 0.3s, transform 0.3s",
+                      "&:hover": {
+                        backgroundColor: "#e3f2fd",
+                        transform: "scale(1.02)",
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ color: "#424242" }}>
+                      {module.icon}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={module.title}
+                      primaryTypographyProps={{
+                        variant: "body2",
+                        color: "#424242",
+                      }}
+                    />
+                    {expandedMenus[module.title] ? (
+                      <ExpandLess sx={{ color: "#424242" }} />
+                    ) : (
+                      <ExpandMore sx={{ color: "#424242" }} />
+                    )}
+                  </ListItemButton>
+                </ListItem>
+              )}
+              
+              {/* Submenu items (solo para módulos que no sean main) */}
+              {!module.isMain && expandedMenus[module.title] &&
                 module.subItems &&
                 module.subItems.map((sub) => {
                   const subActive = sub.path === location.pathname;

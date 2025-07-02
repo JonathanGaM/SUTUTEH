@@ -29,6 +29,7 @@ import { useNavigate } from "react-router-dom";
 import ChevronLeftIcon  from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import axios from "axios";
+import { API_URL } from "../../../config/apiConfig";
 
 
 
@@ -140,7 +141,7 @@ const Noticias = () => {
   };
   // 1) Carga desde API
   useEffect(() => {
-    axios.get('http://localhost:3001/api/noticias/publicados')
+    axios.get(`${API_URL}/api/noticias/publicados`)
       .then(({ data }) => {
         // parsear JSON de imágenes
         const adapt = data.map(n => ({

@@ -47,7 +47,10 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "dev:local": "echo 'Usando backend LOCAL...' && npm start",
+    "dev:render": "echo 'Usando backend RENDER...' && npm start",
+    "build:hostinger": "echo ' Build para Hostinger (backend Render)...' && npm run build"
   },
   "eslintConfig": {
     "extends": [

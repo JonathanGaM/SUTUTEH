@@ -39,7 +39,8 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 
 // URL base de la API
-const API_BASE_URL = 'http://localhost:3001/api';
+import { API_URL } from "../../../../config/apiConfig";
+
 
 // Transition for Dialog
 const Transition = React.forwardRef((props, ref) => <Slide direction="up" ref={ref} {...props} />);
@@ -81,12 +82,16 @@ export default function AdminRifas() {
 
   // Obtener rifas
   const fetchRifas = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/rifas`);
-      const result = await response.json();
-      
-      if (result.success) {
-        const rifasFormateadas = result.data.map(rifa => ({
+  try {
+    const response = await fetch(`${API_URL}/api/rifas`);
+    const result = await response.json();
+    
+    console.log('Respuesta completa del backend:', result); // DEBUG
+    
+    if (result.success) {
+      const rifasFormateadas = result.data.map(rifa => {
+        console.log('Productos por rifa:', rifa.productos); // DEBUG
+        return {
           id: rifa.id,
           titulo: rifa.titulo,
           descripcion: rifa.descripcion,
@@ -98,15 +103,16 @@ export default function AdminRifas() {
           fechaPublicacion: rifa.fecha_publicacion,
           fechaCierre: rifa.fecha_cierre,
           fotoRifa: rifa.foto_rifa,
-          productos: rifa.productos || []
-        }));
-        setRifas(rifasFormateadas);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      setSnackbar({ open: true, message: 'Error al cargar rifas', severity: 'error' });
+          productos: rifa.productos || [] // Asegurar que siempre sea array
+        };
+      });
+      setRifas(rifasFormateadas);
     }
-  };
+  } catch (error) {
+    console.error('Error:', error);
+    setSnackbar({ open: true, message: 'Error al cargar rifas', severity: 'error' });
+  }
+};
 
   // Handlers for search and pagination
   const handleSearch = e => setSearch(e.target.value);
@@ -139,29 +145,50 @@ export default function AdminRifas() {
       });
   }, [rifas, search, filterBoletos]);
 
-  // Open/close form dialog
-  const openFormDialog = rifa => {
-    if (rifa) {
-      setCurrentEdit(rifa.id);
-      setFormData({
-        fotoRifa: rifa.fotoRifa,
-        titulo: rifa.titulo,
-        descripcion: rifa.descripcion,
-        fecha: rifa.fecha,
-        hora: rifa.hora,
-        precio: rifa.precio,
-        ubicacion: rifa.ubicacion,
-        boletosDisponibles: rifa.boletosDisponibles,
-        fechaPublicacion: rifa.fechaPublicacion,
-        fechaCierre: rifa.fechaCierre,
-        productos: rifa.productos || []
-      });
-    } else {
-      setCurrentEdit(null);
-      setFormData({ fotoRifa: null, titulo: '', descripcion: '', fecha: '', hora: '', precio: '', ubicacion: '', boletosDisponibles: '', fechaPublicacion: '', fechaCierre: '', productos: [] });
-    }
-    setOpenForm(true);
-  };
+  // 2. Modificar la función openFormDialog (cambiar esta parte específica)
+
+const openFormDialog = rifa => {
+  if (rifa) {
+    setCurrentEdit(rifa.id);
+    
+    // DEBUG: Ver qué productos vienen de la API
+    console.log('Productos de la rifa:', rifa.productos);
+    
+    // Procesar productos existentes SIN cambiar su ID original
+    const productosFormateados = (rifa.productos || []).map((producto, index) => ({
+      id: producto.id || `existing_${Date.now()}_${index}`, // ID único pero predecible
+      titulo: producto.titulo || '',
+      descripcion: producto.descripcion || '',
+      foto: producto.foto || null, // URL existente de Cloudinary
+      fotoFile: null, // No hay archivo nuevo inicialmente
+      isExisting: true // Marcar como producto existente
+    }));
+
+    console.log('Productos formateados:', productosFormateados); // DEBUG
+
+    setFormData({
+      fotoRifa: rifa.fotoRifa,
+      titulo: rifa.titulo,
+      descripcion: rifa.descripcion,
+      fecha: formatDateForInput(rifa.fecha),
+      hora: rifa.hora,
+      precio: rifa.precio,
+      ubicacion: rifa.ubicacion,
+      boletosDisponibles: rifa.boletosDisponibles,
+      fechaPublicacion: formatDateForInput(rifa.fechaPublicacion),
+      fechaCierre: formatDateForInput(rifa.fechaCierre),
+      productos: productosFormateados
+    });
+  } else {
+    setCurrentEdit(null);
+    setFormData({ 
+      fotoRifa: null, titulo: '', descripcion: '', fecha: '', hora: '', 
+      precio: '', ubicacion: '', boletosDisponibles: '', fechaPublicacion: '', 
+      fechaCierre: '', productos: [] 
+    });
+  }
+  setOpenForm(true);
+};
   const closeForm = () => setOpenForm(false);
 
   // Form field handlers
@@ -175,13 +202,20 @@ export default function AdminRifas() {
     }
   };
 
-  // Product handlers
+
   const addProduct = () => {
-    setFormData(prev => ({
-      ...prev,
-      productos: [...prev.productos, { id: Date.now(), foto: null, titulo: '', descripcion: '' }]
-    }));
-  };
+  setFormData(prev => ({
+    ...prev,
+    productos: [...prev.productos, { 
+      id: Date.now(), 
+      foto: null, 
+      titulo: '', 
+      descripcion: '', 
+      fotoFile: null,
+      isExisting: false // <-- Marcar como producto nuevo
+    }]
+  }));
+};
   const updateProduct = (id, field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -195,124 +229,189 @@ export default function AdminRifas() {
     }));
   };
 
-  const handleProductFileChange = (e, productId) => {
-    const file = e.target.files[0];
-    if (!file) return;
+ const handleProductFileChange = (e, productId) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    // Crear preview inmediato
-    const fileUrl = URL.createObjectURL(file);
-    updateProduct(productId, 'foto', fileUrl);
-    updateProduct(productId, 'fotoFile', file); // Guardar el archivo para enviar luego
-  };
+  // Crear preview inmediato
+  const fileUrl = URL.createObjectURL(file);
+  
+  // Actualizar tanto la URL de preview como el archivo
+  setFormData(prev => ({
+    ...prev,
+    productos: prev.productos.map(p => 
+      p.id === productId 
+        ? { 
+            ...p, 
+            foto: fileUrl, // Preview temporal
+            fotoFile: file, // Archivo para subir
+            isExisting: false // Ya no es existente, ahora tiene cambios
+          } 
+        : p
+    )
+  }));
+};
+  const formatDateForDisplay = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+// Función para formatear fecha a YYYY-MM-DD (para inputs)
+const formatDateForInput = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toISOString().split('T')[0];
+};
 
   // Save or update raffle
-  const handleSave = async () => {
-    try {
-      const formDataToSend = new FormData();
-      
-      formDataToSend.append('titulo', formData.titulo);
-      formDataToSend.append('descripcion', formData.descripcion);
-      formDataToSend.append('fecha', formData.fecha);
-      formDataToSend.append('hora', formData.hora);
-      formDataToSend.append('precio', formData.precio);
-      formDataToSend.append('ubicacion', formData.ubicacion);
-      formDataToSend.append('boletos_disponibles', formData.boletosDisponibles);
-      formDataToSend.append('fecha_publicacion', formData.fechaPublicacion || '');
-      formDataToSend.append('fecha_cierre', formData.fechaCierre || '');
-      
-      if (formData.fotoRifa && typeof formData.fotoRifa !== 'string') {
-        formDataToSend.append('foto_rifa', formData.fotoRifa);
-      }
-      
-      // Subir fotos de productos primero si hay archivos nuevos
-      const productosConFotos = await Promise.all(
-        formData.productos.map(async (producto) => {
-          if (producto.fotoFile) {
-            try {
-              const formDataFile = new FormData();
-              formDataFile.append('foto_producto', producto.fotoFile);
+ const handleSave = async () => {
+  try {
+    console.log('=== INICIO GUARDAR RIFA ===');
+    console.log('Productos originales:', formData.productos);
+    
+    const formDataToSend = new FormData();
+    
+    formDataToSend.append('titulo', formData.titulo);
+    formDataToSend.append('descripcion', formData.descripcion);
+    formDataToSend.append('fecha', formData.fecha);
+    formDataToSend.append('hora', formData.hora);
+    formDataToSend.append('precio', formData.precio);
+    formDataToSend.append('ubicacion', formData.ubicacion);
+    formDataToSend.append('boletos_disponibles', formData.boletosDisponibles);
+    formDataToSend.append('fecha_publicacion', formData.fechaPublicacion || '');
+    formDataToSend.append('fecha_cierre', formData.fechaCierre || '');
+    
+    if (formData.fotoRifa && typeof formData.fotoRifa !== 'string') {
+      formDataToSend.append('foto_rifa', formData.fotoRifa);
+    }
+    
+    // PROCESAR PRODUCTOS CON MEJOR LÓGICA
+    const productosConFotos = await Promise.all(
+      formData.productos.map(async (producto, index) => {
+        console.log(`Procesando producto ${index + 1}:`, {
+          titulo: producto.titulo,
+          tieneArchivo: !!producto.fotoFile,
+          fotoActual: producto.foto,
+          isExisting: producto.isExisting
+        });
 
-              const response = await fetch(`${API_BASE_URL}/rifas/producto/foto`, {
-                method: 'POST',
-                body: formDataFile
-              });
+        // Si tiene archivo nuevo (fotoFile), subirlo
+        if (producto.fotoFile) {
+          try {
+            console.log(`Subiendo nueva foto para producto: ${producto.titulo}`);
+            
+            const formDataFile = new FormData();
+            formDataFile.append('foto_producto', producto.fotoFile);
 
-              const result = await response.json();
+            const response = await fetch(`${API_URL}/api/rifas/producto/foto`, {
+              method: 'POST',
+              body: formDataFile
+            });
 
-              if (result.success) {
-                return {
-                  titulo: producto.titulo,
-                  descripcion: producto.descripcion || '',
-                  foto: result.data.url
-                };
-              }
-            } catch (error) {
-              console.error('Error al subir foto de producto:', error);
+            const result = await response.json();
+            console.log('Resultado subida foto:', result);
+
+            if (result.success) {
+              return {
+                titulo: producto.titulo,
+                descripcion: producto.descripcion || '',
+                foto: result.data.url // Nueva URL subida
+              };
+            } else {
+              console.error('Error al subir foto:', result.message);
+              // Si falla la subida, mantener la foto existente o null
+              return {
+                titulo: producto.titulo,
+                descripcion: producto.descripcion || '',
+                foto: (producto.isExisting && producto.foto && !producto.foto.startsWith('blob:')) ? producto.foto : null
+              };
             }
+          } catch (error) {
+            console.error('Error al subir foto de producto:', error);
+            // En caso de error, mantener foto existente si la hay
+            return {
+              titulo: producto.titulo,
+              descripcion: producto.descripcion || '',
+              foto: (producto.isExisting && producto.foto && !producto.foto.startsWith('blob:')) ? producto.foto : null
+            };
           }
+        } else {
+          // No hay archivo nuevo, mantener la foto existente (si la tiene)
+          const fotoFinal = (producto.foto && !producto.foto.startsWith('blob:')) ? producto.foto : null;
+          console.log(`Sin archivo nuevo para ${producto.titulo}, foto final:`, fotoFinal);
+          
           return {
             titulo: producto.titulo,
             descripcion: producto.descripcion || '',
-            foto: producto.foto && !producto.foto.startsWith('blob:') ? producto.foto : null
+            foto: fotoFinal
           };
-        })
-      );
-      
-      // Convertir productos a string para que el backend lo pueda parsear
-      const productosString = JSON.stringify(productosConFotos);
-      formDataToSend.append('productos', productosString);
+        }
+      })
+    );
+    
+    console.log('Productos procesados para enviar:', productosConFotos);
+    
+    // Convertir productos a string para que el backend lo pueda parsear
+    const productosString = JSON.stringify(productosConFotos);
+    formDataToSend.append('productos', productosString);
+    
+    console.log('Productos como string:', productosString);
 
-      const url = currentEdit != null 
-        ? `${API_BASE_URL}/rifas/${currentEdit}`
-        : `${API_BASE_URL}/rifas`;
-      
-      const method = currentEdit != null ? 'PUT' : 'POST';
+    const url = currentEdit != null 
+      ? `${API_URL}/api/rifas/${currentEdit}`
+      : `${API_URL}/api/rifas`;
+    
+    const method = currentEdit != null ? 'PUT' : 'POST';
+    
+    console.log(`Enviando ${method} a ${url}`);
 
-      const response = await fetch(url, {
-        method,
-        body: formDataToSend
-      });
+    const response = await fetch(url, {
+      method,
+      body: formDataToSend
+    });
 
-      console.log('Status de respuesta:', response.status);
-      
-      // Verificar si la respuesta es JSON válida
-      const contentType = response.headers.get('content-type');
-      console.log('Content-Type:', contentType);
-      
-      let result;
-      if (contentType && contentType.includes('application/json')) {
-        result = await response.json();
-      } else {
-        const textResult = await response.text();
-        console.log('Respuesta como texto:', textResult);
-        result = { success: false, message: 'Error del servidor' };
-      }
-      
-      console.log('Respuesta del servidor:', result);
-
-      if (result.success) {
-        setSnackbar({
-          open: true, 
-          message: currentEdit != null ? 'Rifa actualizada' : 'Rifa creada', 
-          severity: 'success'
-        });
-        closeForm();
-        fetchRifas();
-      } else {
-        setSnackbar({ open: true, message: result.message || 'Error al guardar', severity: 'error' });
-      }
-    } catch (error) {
-      console.error('Error completo:', error);
-      setSnackbar({ open: true, message: 'Error de conexión', severity: 'error' });
+    console.log('Status de respuesta:', response.status);
+    
+    const contentType = response.headers.get('content-type');
+    console.log('Content-Type:', contentType);
+    
+    let result;
+    if (contentType && contentType.includes('application/json')) {
+      result = await response.json();
+    } else {
+      const textResult = await response.text();
+      console.log('Respuesta como texto:', textResult);
+      result = { success: false, message: 'Error del servidor' };
     }
-  };
+    
+    console.log('Respuesta del servidor:', result);
+
+    if (result.success) {
+      setSnackbar({
+        open: true, 
+        message: currentEdit != null ? 'Rifa actualizada exitosamente' : 'Rifa creada exitosamente', 
+        severity: 'success'
+      });
+      closeForm();
+      fetchRifas(); // Recargar lista
+    } else {
+      setSnackbar({ open: true, message: result.message || 'Error al guardar', severity: 'error' });
+    }
+  } catch (error) {
+    console.error('Error completo:', error);
+    setSnackbar({ open: true, message: 'Error de conexión', severity: 'error' });
+  }
+};
 
   // Delete raffle
   const handleDelete = async (id) => {
     if (!window.confirm('¿Estás seguro de eliminar esta rifa?')) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/rifas/${id}`, {
+      const response = await fetch(`${API_URL}/api/rifas/${id}`, {
         method: 'DELETE'
       });
 
@@ -329,6 +428,25 @@ export default function AdminRifas() {
       setSnackbar({ open: true, message: 'Error de conexión', severity: 'error' });
     }
   };
+const formatDateForTable = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const months = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+  ];
+  const day = date.getDate();
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  return `${day} de ${month} de ${year}`;
+};
+
+// Función para formatear hora a "04:00 hr"
+const formatTimeForTable = (timeString) => {
+  if (!timeString) return '';
+  const [hours, minutes] = timeString.split(':');
+  return `${hours}:${minutes} hr`;
+};
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -411,8 +529,8 @@ export default function AdminRifas() {
                 .map((row) => (
                   <TableRow key={row.id} hover>
                     <TableCell>{row.titulo}</TableCell>
-                    <TableCell>{row.fecha}</TableCell>
-                    <TableCell>{row.hora}</TableCell>
+                    <TableCell>{formatDateForTable(row.fecha)}</TableCell> 
+                    <TableCell>{formatTimeForTable(row.hora)}</TableCell> 
                     <TableCell>${row.precio}</TableCell>
                     <TableCell>{row.boletosDisponibles}</TableCell>
                     <TableCell align="center">
@@ -819,12 +937,14 @@ export default function AdminRifas() {
             <Grid item xs={12} sm={3}>
               <TextField
                 label="Fecha"
-                value={currentView?.fecha || ""}
+               value={formatDateForDisplay(currentView?.fecha) || ""} // <-- CAMBIO AQUÍ
                 fullWidth
                 size="small"
                 InputProps={{ readOnly: true }}
               />
             </Grid>
+            
+
             <Grid item xs={12} sm={3}>
               <TextField
                 label="Hora"
@@ -864,7 +984,7 @@ export default function AdminRifas() {
             <Grid item xs={12} sm={4}>
               <TextField
                 label="Fecha de Publicación"
-                value={currentView?.fechaPublicacion || ""}
+                 value={formatDateForDisplay(currentView?.fechaPublicacion) || ""}
                 fullWidth
                 size="small"
                 InputProps={{ readOnly: true }}
@@ -873,7 +993,7 @@ export default function AdminRifas() {
             <Grid item xs={12} sm={4}>
               <TextField
                 label="Fecha de Cierre"
-                value={currentView?.fechaCierre || ""}
+                value={formatDateForDisplay(currentView?.fechaCierre) || ""} 
                 fullWidth
                 size="small"
                 InputProps={{ readOnly: true }}

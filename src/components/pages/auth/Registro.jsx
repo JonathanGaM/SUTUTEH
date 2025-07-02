@@ -30,6 +30,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
+import { API_URL } from "../../../config/apiConfig";
 
 const steps = [
   "Validación de Correo y Datos Básicos",
@@ -134,16 +135,16 @@ const Registro = () => {
 
    // Cargar catálogos al montar
    useEffect(() => {
-    axios.get('http://localhost:3001/api/registro/universidades')
+    axios.get(`${API_URL}/api/registro/universidades`)
       .then(res => setUniversidades(res.data))
       .catch(console.error);
-    axios.get('http://localhost:3001/api/registro/puestos')
+    axios.get(`${API_URL}/api/registro/puestos`)
       .then(res => setPuestos(res.data))
       .catch(console.error);
-    axios.get('http://localhost:3001/api/registro/programas')
+    axios.get(`${API_URL}/api/registro/programas`)
       .then(res => setProgramas(res.data))
       .catch(console.error);
-    axios.get('http://localhost:3001/api/registro/niveles')
+    axios.get(`${API_URL}/api/registro/niveles`)
       .then(res => setNiveles(res.data))
       .catch(console.error);
   }, []);
@@ -188,7 +189,7 @@ if (activeStep === 0) {
 
   // 1) Validar reCAPTCHA en backend
   try {
-    await axios.post("http://localhost:3001/api/registro/validarCaptcha", { tokenCaptcha: captchaValue });
+    await axios.post(`${API_URL}/api/registro/validarCaptcha`, { tokenCaptcha: captchaValue });
   } catch (err) {
     setErrors({ captcha: "reCAPTCHA inválido." });
     captchaRef.current?.reset();    // <-- aquí también
@@ -198,7 +199,7 @@ if (activeStep === 0) {
 
   // 2) Validar existencia / preregistro del usuario
   try {
-    await axios.post("http://localhost:3001/api/registro/validarUsuario", {
+    await axios.post(`${API_URL}/api/registro/validarUsuario`, {
       correo_electronico: email,
       fecha_nacimiento: dateOfBirth.format("YYYY-MM-DD"),
     });
@@ -241,7 +242,7 @@ if (activeStep === 0) {
     setErrors({});
     // 2) Verificar en el backend si la contraseña está comprometida
     try {
-      await axios.post("http://localhost:3001/api/registro/checkPasswordCompromised", {
+      await axios.post(`${API_URL}/api/registro/checkPasswordCompromised`, {
         password,
       });
     } catch (err) {
@@ -251,7 +252,7 @@ if (activeStep === 0) {
     }
       // 3) Enviar OTP al correo
     try {
-      await axios.post("http://localhost:3001/api/registro/enviarCodigo", {
+      await axios.post(`${API_URL}/api/registro/enviarCodigo`, {
         correo_electronico: email,
         fecha_nacimiento: dateOfBirth.format("YYYY-MM-DD"),
       });
@@ -280,7 +281,7 @@ if (activeStep === 0) {
   
     // 2) validación remota
     try {
-      await axios.post("http://localhost:3001/api/registro/validarCodigo", {
+      await axios.post(`${API_URL}/api/registro/validarCodigo`, {
         correo_electronico: email,
         codigo: verificationCode,
       });
@@ -335,7 +336,7 @@ if (activeStep === 0) {
 
     try {
       // Llamada al endpoint para guardar TODO el registro
-      await axios.post("http://localhost:3001/api/registro/actualizarUsuario", {
+      await axios.post(`${API_URL}/api/registro/actualizarUsuario`, {
         correo_electronico: email,
         password,
         firstName,

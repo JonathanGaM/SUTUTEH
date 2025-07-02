@@ -13,6 +13,7 @@ import {
   InputAdornment
 } from "@mui/material";
 import { Email, Phone, LocationOn, Facebook } from "@mui/icons-material";
+import { API_URL } from "../../../config/apiConfig";
 
 const Contacto = () => {
   const [mensaje, setMensaje] = useState("");
@@ -47,7 +48,7 @@ const Contacto = () => {
     }
 
     try {
-      const res = await fetch("http://localhost:3001/api/preguntas/registrado", {
+      const res = await fetch(`${API_URL}/api/preguntas/registrado`, {
         method: "POST",
         credentials: "include", // para enviar la cookie authToken
         headers: { "Content-Type": "application/json" },
@@ -81,7 +82,7 @@ const Contacto = () => {
 useEffect(() => {
   const fetchMyQAs = async () => {
     try {
-      const res = await fetch("http://localhost:3001/api/preguntas/usuario", {
+      const res = await fetch(`${API_URL}/api/preguntas/usuario`, {
         credentials: "include"
       });
       if (!res.ok) throw new Error();

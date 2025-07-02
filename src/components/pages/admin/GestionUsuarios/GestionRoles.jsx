@@ -31,6 +31,8 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
 
+import { API_URL } from "../../../../config/apiConfig";
+
 // ----------------------------------------------
 // Transición para los diálogos tipo slide
 // ----------------------------------------------
@@ -170,7 +172,7 @@ export default function GestionRoles() {
 
 useEffect(() => {
   // 1) Cargo los usuarios libres (igual que antes)
-  axios.get('http://localhost:3001/api/puestos/libres')
+  axios.get(`${API_URL}/api/puestos/libres`)
     .then(res => {
       setUnassignedUsers(res.data);
     })
@@ -180,7 +182,7 @@ useEffect(() => {
     });
 
   // 2) Cargo todos los puestos CON el usuario asignado (si lo hay)
-  axios.get('http://localhost:3001/api/puestos')
+  axios.get(`${API_URL}/api/puestos`)
     .then(res => {
       // Cada elemento 'row' ya trae: 
       //   puesto_id, puesto_nombre, puesto_responsabilidad,
@@ -239,7 +241,7 @@ useEffect(() => {
 
     // Llamada PUT para asignar: /api/puestos/:id → { usuario_id: draggedUserId }
     try {
-      await axios.put(`http://localhost:3001/api/puestos/${puestoIdStr}`, {
+      await axios.put(`${API_URL}/api/puestos/${puestoIdStr}`, {
         usuario_id: parseInt(draggedUserId, 10)
       });
       // Si sale bien:
@@ -269,10 +271,10 @@ useEffect(() => {
     // PUT /api/puestos/:id con usuario_id = null
     const realId = editingRoleId.replace('role-', '');
     try {
-      await axios.put(`http://localhost:3001/api/puestos/${realId}`, {
+      await axios.put(`${API_URL}/api/puestos/${realId}`, {
         usuario_id: null
       });
-      // Si sale bien, devolvemos ese usuario a “sin asignar”
+      // Si sale bien, devolvemos ese usuario a "sin asignar"
       setUnassignedUsers(prev => [...prev, userToRemove]);
       // Actualizamos roles en memoria
       setRoles(prev =>
@@ -333,7 +335,7 @@ useEffect(() => {
     if (roleModalMode === 'add') {
       // Crear nuevo puesto con POST
       try {
-        const resp = await axios.post('http://localhost:3001/api/puestos', {
+        const resp = await axios.post(`${API_URL}/api/puestos`, {
           nombre: roleModalData.name,
           responsabilidad: roleModalData.description
         });
@@ -354,7 +356,7 @@ useEffect(() => {
       // Editar un puesto existente
       const realId = editingRoleId.replace('role-', '');
       try {
-        await axios.put(`http://localhost:3001/api/puestos/${realId}`, {
+        await axios.put(`${API_URL}/api/puestos/${realId}`, {
           nombre: roleModalData.name,
           responsabilidad: roleModalData.description
         });
@@ -395,8 +397,8 @@ useEffect(() => {
   const confirmDeleteRole = async () => {
     const realId = roleToDelete.id.replace('role-', '');
     try {
-      await axios.delete(`http://localhost:3001/api/puestos/${realId}`);
-      // Devolver a “sin asignar” cualquier usuario asignado
+      await axios.delete(`${API_URL}/api/puestos/${realId}`);
+      // Devolver a "sin asignar" cualquier usuario asignado
       const usersBack = roleToDelete.assignedUsers;
       setUnassignedUsers(prev => [...prev, ...usersBack]);
       setRoles(prev => prev.filter(r => r.id !== roleToDelete.id));

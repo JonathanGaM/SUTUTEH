@@ -34,6 +34,8 @@ import ReplyIcon from '@mui/icons-material/Reply';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Tooltip from '@mui/material/Tooltip';
 import CircularProgress from '@mui/material/CircularProgress';
+import { API_URL } from "../../../../config/apiConfig";
+
 
 
 export default function AdminPreguntas() {
@@ -135,8 +137,8 @@ const handleSaveReply = () => {
 
   // 1) Decide qué endpoint usar según el tipo de usuario
   const url = current.registrado
-    ? `http://localhost:3001/api/preguntas/${current.id}/responder-admin`
-    : `http://localhost:3001/api/preguntas/${current.id}/responder`;
+    ? `${API_URL}/api/preguntas/${current.id}/responder-admin`
+    : `${API_URL}/api/preguntas/${current.id}/responder`;
 
   // 2) Llama al endpoint correspondiente
   fetch(url, {
@@ -193,7 +195,7 @@ const handleSaveReply = () => {
   };
 
  const handleDelete = id => {
-    fetch(`http://localhost:3001/api/preguntas/${id}`, { method: 'DELETE' })
+    fetch(`${API_URL}/api/preguntas/${id}`, { method: 'DELETE' })
      .then(res => {
         if (!res.ok) throw new Error('No se pudo eliminar');
         return res.json();
@@ -211,7 +213,7 @@ const handleSaveReply = () => {
 useEffect(() => {
   // Función que carga preguntas
   const loadQuestions = () => {
-    fetch('http://localhost:3001/api/preguntas', {
+    fetch(`${API_URL}/api/preguntas`, {
       headers: { 'Content-Type': 'application/json' }
     })
       .then(res => res.json())

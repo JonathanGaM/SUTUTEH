@@ -5,6 +5,7 @@ import {
   Chip, TablePagination, TableSortLabel
 } from "@mui/material";
 import axios from "axios";
+import { API_URL } from "../../../config/apiConfig";
 
 export default function EncuestasVotaciones() {
   const [rows, setRows] = useState([]);
@@ -14,14 +15,13 @@ export default function EncuestasVotaciones() {
 
   // Combina contestadas y activas (no contestadas)
  useEffect(() => {
-  axios.get("http://localhost:3001/api/encuestas-votaciones/usuario/estado", { withCredentials: true })
+  axios.get(`${API_URL}/api/encuestas-votaciones/usuario/estado`, { withCredentials: true })
     .then(({ data }) => {
       setRows(data);
     })
     .catch(console.error);
 }, []);
-
-
+   
   // Ordenar por estado
   const sortedRows = React.useMemo(() => {
     return [...rows].sort((a, b) => {
@@ -31,13 +31,13 @@ export default function EncuestasVotaciones() {
     });
   }, [rows, order]);
 
-const formatDate = (iso) => {
+ const formatDate = (iso) => {
   if (!iso || typeof iso !== "string") return "";
-  const [datePart] = iso.split("T");       // "2025-06-20"
+  const [datePart] = iso.split("T");      // "2025-06-20"
   const [year, month, day] = datePart.split("-");
   return `${day}/${month}/${year}`;
 };
-
+  
   return (
     <Container maxWidth="md" sx={{ mt: 15, mb: 4 }}>
       <Box sx={{ textAlign: "center", mb: 3 }}>

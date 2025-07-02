@@ -2,6 +2,7 @@
 import React, { useState, useRef, useMemo,useEffect } from "react";
 import axios from "axios";
 import { Html5Qrcode } from "html5-qrcode";
+import { API_URL } from "../../../config/apiConfig";
 
 import {
   Container,
@@ -99,7 +100,7 @@ export default function Reuniones() {
   useEffect(() => {
       // 1) Cargar TODAS las reuniones (para el calendario)
   axios
-    .get("http://localhost:3001/api/reuniones")
+    .get(`${API_URL}/api/reuniones`)
     .then(({ data }) => {
       setTodasLasReuniones(data);
     })
@@ -108,9 +109,9 @@ export default function Reuniones() {
     );
 
   axios
-     .get("http://localhost:3001/api/reuniones/usuario/asistencia", { withCredentials: true })
+     .get(`${API_URL}/api/reuniones/usuario/asistencia`, { withCredentials: true })
      .then(({ data }) => {
-       // Filtrar solo “En Curso” o “Terminada” y generar el campo “estado”
+       // Filtrar solo "En Curso" o "Terminada" y generar el campo "estado"
        const filtered = data
          .filter((r) => r.status === "En Curso" || r.status === "Terminada")
          .map((r) => ({
@@ -137,13 +138,13 @@ export default function Reuniones() {
               // decodedText === ID de la reunión
               axios
                 .post(
-                  `http://localhost:3001/api/reuniones/${decodedText}/asistencia`,
+                  `${API_URL}/api/reuniones/${decodedText}/asistencia`,
                   {},
                   { withCredentials: true }
                 )
                 .then(() => {
                   showSnackbar("Asistencia registrada", "success");
-                 return axios.get("http://localhost:3001/api/reuniones/usuario/asistencia", { withCredentials: true });
+                 return axios.get(`${API_URL}/api/reuniones/usuario/asistencia`, { withCredentials: true });
 
                 })
                  .then(({ data }) => {
@@ -200,7 +201,7 @@ export default function Reuniones() {
 
 // Devuelve estilos dinámicos según el status del evento
 const eventStyleGetter = (event) => {
-  let backgroundColor = "#1976d2"; // azul para “Programada”
+  let backgroundColor = "#1976d2"; // azul para "Programada"
   if (event.status === "En Curso") backgroundColor = "#4caf50";   // verde
   if (event.status === "Terminada") backgroundColor = "#f44336"; // rojo
 
@@ -219,7 +220,7 @@ const eventStyleGetter = (event) => {
   const handleCalSelect = (eventoCalendario) => {
    const reunión = todasLasReuniones.find((r) => r.id === eventoCalendario.id);
   if (reunión) {
-    // Para el estado “estado”, si ya estaba en rows, mantenlo; si no, usa reunion.status
+    // Para el estado "estado", si ya estaba en rows, mantenlo; si no, usa reunion.status
     const tuvoAsistencia = rows.find((rr) => rr.id === reunión.id);
     const estado = tuvoAsistencia
       ? tuvoAsistencia.estado
@@ -237,7 +238,7 @@ const eventStyleGetter = (event) => {
   const [viewOpen, setViewOpen] = useState(false);
   const [current, setCurrent] = useState(null);
   const closeView = () => setViewOpen(false);
-    // Helper: formatear fecha “YYYY-MM-DD” ➔ “31 de mayo de 2025”
+    // Helper: formatear fecha "YYYY-MM-DD" ➔ "31 de mayo de 2025"
   const formatFecha = (raw) => {
     if (!raw) return "";
     const d = raw instanceof Date ? raw : new Date(raw);
@@ -248,10 +249,10 @@ const eventStyleGetter = (event) => {
     });
   };
 
-  // Helper: formatear hora “HH:MM:SS” ➔ “HH:MM hr”
+  // Helper: formatear hora "HH:MM:SS" ➔ "HH:MM hr"
   const formatHora = (raw) => {
     if (!raw) return "";
-    // Si es Date, lo pasamos a cadena “HH:MM”
+    // Si es Date, lo pasamos a cadena "HH:MM"
     if (raw instanceof Date) {
       return (
         raw.toLocaleTimeString("es-ES", {
@@ -260,7 +261,7 @@ const eventStyleGetter = (event) => {
         }) + " hr"
       );
     }
-    // Si viene como string “HH:MM:SS”
+    // Si viene como string "HH:MM:SS"
     return `${String(raw).slice(0, 5)} hr`;
   };
 

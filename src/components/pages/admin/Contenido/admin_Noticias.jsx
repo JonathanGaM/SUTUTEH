@@ -36,6 +36,8 @@
   import EditIcon from '@mui/icons-material/Edit';
   import DeleteIcon from '@mui/icons-material/DeleteOutlined';
 
+
+
   export default function AdminNoticias() {
     const [newsList, setNewsList] = useState([]);
     const [search, setSearch] = useState('');
@@ -76,7 +78,7 @@
 
     const fetchNoticias = async () => {
       try {
-        const { data } = await axios.get('http://localhost:3001/api/noticias');
+        const { data } = await axios.get('/api/noticias');
         // adapt returned fields
         const adapted = data.map(n => ({
           id: n.id,
@@ -228,14 +230,14 @@
       try {
         if (editingId) {
           await axios.put(
-            `http://localhost:3001/api/noticias/${editingId}`,
+            `/api/noticias/${editingId}`,
             form,
             { headers: {'Content-Type':'multipart/form-data'} }
           );
           showSnackbar('Noticia actualizada');
         } else {
           await axios.post(
-            'http://localhost:3001/api/noticias',
+            '/api/noticias',
             form,
             { headers: {'Content-Type':'multipart/form-data'} }
           );
@@ -255,7 +257,7 @@
 
     const handleDelete = async id => {
       try {
-        await axios.delete(`http://localhost:3001/api/noticias/${id}`);
+        await axios.delete(`/api/noticias/${id}`);
         showSnackbar('Noticia eliminada');
         fetchNoticias();
       } catch (err) {
@@ -268,7 +270,6 @@
     const closeView = () => setViewOpen(false);
     return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        {/* Barra de acciones */}
         <Paper
           sx={{
             p: 1.5,
@@ -319,7 +320,6 @@
           </Button>
         </Paper>
 
-        {/* Tabla de noticias */}
         <Paper
           elevation={2}
           sx={{
@@ -359,9 +359,9 @@
                       <TableCell>{item.date}</TableCell>
                       <TableCell
                         sx={{
-                          whiteSpace: "nowrap" /* 3 */,
-                          overflow: "hidden" /* 3 */,
-                          textOverflow: "ellipsis" /* 3 */,
+                          whiteSpace: "nowrap" ,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis"
                         }}
                       >
                         {item.desc}
@@ -577,9 +577,9 @@
             <Typography
               variant="body2"
               sx={{
-                whiteSpace: "pre-line", // ← respeta '\n'
+                whiteSpace: "pre-line", 
                 mt: 0.5,
-                ml: 1, // sangría opcional
+                ml: 1, 
               }}
             >
               {currentNews?.desc}

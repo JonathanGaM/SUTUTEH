@@ -26,10 +26,9 @@ import {
 } from "@mui/material";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import SearchIcon from "@mui/icons-material/Search";
+import { API_URL } from "../../../config/apiConfig";
 import "animate.css";
 
-// Base URL para metadatos
-const API_BASE = 'http://localhost:3001/api/documentos';
 // Endpoint para subida de archivos (solo si lo necesitaras)
 const UPLOAD_PHP_URL = 'https://portal.sututeh.com/upload.php';
 
@@ -46,8 +45,8 @@ const Documentos = () => {
   const filterOptions = ["Más reciente", "Última semana", "Último mes"];
 
   useEffect(() => {
-    // Carga de documentos usando API_BASE
-    axios.get(API_BASE)
+    // Carga de documentos usando API_URL
+    axios.get(`${API_URL}/api/documentos`)
       .then(({ data }) => {
         setDocsList(data.map(d => ({
           id: d.id,

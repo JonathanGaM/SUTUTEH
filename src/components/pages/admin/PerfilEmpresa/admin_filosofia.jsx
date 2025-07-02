@@ -33,6 +33,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/DeleteOutlined';
 import DescriptionIcon from '@mui/icons-material/Description';
 import axios from "axios";
+import { API_URL } from "../../../../config/apiConfig";
 
 const sectionOptions = [
   "Misión",
@@ -71,7 +72,7 @@ const [newImagePreview, setNewImagePreview] = useState(null);
   const showSnack = (msg, sev = 'success') => setSnackbar({ open: true, message: msg, severity: sev });
   const closeSnack = () => setSnackbar(prev => ({ ...prev, open: false }));
 
-  const API = "http://localhost:3001/api/nosotros";
+  const API = `${API_URL}/api/nosotros`;
   const handleSectionChange = e => {
     setSelectedSection(e.target.value);
     setErrors(prev => ({ ...prev, type: '' }));

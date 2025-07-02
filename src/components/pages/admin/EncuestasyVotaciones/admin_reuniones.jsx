@@ -44,6 +44,8 @@ import { Calendar, momentLocalizer, Views } from "react-big-calendar";
 import moment from "moment";
 import "moment/locale/es";
 import "react-big-calendar/lib/css/react-big-calendar.css";
+import { API_URL } from "../../../../config/apiConfig";
+
 
 export default function AdminReuniones() {
   const [search, setSearch] = useState("");
@@ -69,7 +71,7 @@ const handleCalSelect = (eventoCalendario) => {
 };
   useEffect(() => {
     axios
-      .get("http://localhost:3001/api/reuniones")
+      .get(`${API_URL}/api/reuniones`)
       .then((resp) => setMeetings(resp.data))
       .catch((err) => console.error("Error cargando reuniones", err));
   }, []);
@@ -154,7 +156,7 @@ const handleCalSelect = (eventoCalendario) => {
     try {
       const payload = { ...formData };
       const resp = await axios.post(
-        "http://localhost:3001/api/reuniones",
+        `${API_URL}/api/reuniones`,
         payload
       );
       const nueva = resp.data; // { id, title, date:"2025-06-01T06:00:00.000Z", time:"15:30:00", ... }
@@ -190,7 +192,7 @@ const handleCalSelect = (eventoCalendario) => {
     try {
       const payload = { ...formData };
       const resp = await axios.put(
-        `http://localhost:3001/api/reuniones/${editingId}`,
+        `${API_URL}/api/reuniones/${editingId}`,
         payload
       );
       // el backend ya retorna el status calculado
@@ -271,7 +273,7 @@ const messagesEs = {
     try {
       // traemos la reunión completa (con el campo status calculado en el servidor)
       const { data } = await axios.get(
-        `http://localhost:3001/api/reuniones/${meeting.id}`
+        `${API_URL}/api/reuniones/${meeting.id}`
       );
       setCurrent(data);
       setQrOpen(true);
@@ -284,7 +286,7 @@ const messagesEs = {
   const handleDelete = async (id) => {
   try {
     // Llama al endpoint DELETE
-    await axios.delete(`http://localhost:3001/api/reuniones/${id}`);
+    await axios.delete(`${API_URL}/api/reuniones/${id}`);
     // Solo si el borrado fue exitoso, actualizamos el state
     setMeetings((prev) => prev.filter((m) => m.id !== id));
     showSnackbar("Reunión eliminada correctamente", "info");
@@ -315,7 +317,7 @@ const messagesEs = {
 // Devuelve estilos dinámicos según el status del evento
 
 const eventStyleGetter = (event) => {
-  let backgroundColor = "#1976d2"; // azul por defecto (“Programada”)
+  let backgroundColor = "#1976d2"; // azul por defecto ("Programada")
   if (event.status === "En Curso") backgroundColor = "#4caf50";     // verde
   if (event.status === "Terminada") backgroundColor = "#f44336";   // rojo
 

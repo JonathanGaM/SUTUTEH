@@ -17,11 +17,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import ReCAPTCHA from "react-google-recaptcha";
 import axios from "axios";
-
-
-
-const API_URL = "http://localhost:3001/api/login"; // Ruta del endpoint de login
-
+import { API_URL } from "../../../config/apiConfig";
 
 const Login = () => {
   const captchaRef = useRef(null);
@@ -99,7 +95,7 @@ const Login = () => {
   
     // 2) Envío al servidor
     try {
-      const { data } = await axios.post(API_URL, {
+      const { data } = await axios.post(`${API_URL}/api/login`, {
         email,
         password,
         tokenCaptcha: captchaValue,
@@ -113,7 +109,7 @@ const Login = () => {
   
       setTimeout(() => {
         if (roleId === 2) {
-          window.location.href = "/auditoria";  // Admin
+          window.location.href = "/panel-admin";  // Admin
         } else {
           window.location.href = "/perfil"; // Agremiado
         }

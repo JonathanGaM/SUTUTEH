@@ -16,6 +16,8 @@ import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recha
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import axios from 'axios';
+import { API_URL } from "../../../../config/apiConfig";
+
 
 const COLORS = ['#0088FE', '#FF8042'];
 
@@ -32,17 +34,17 @@ export default function AsistenciaReuniones() {
   // 1) Cargar datos de la reunión y asistencia
   useEffect(() => {
     // Info de la reunión
-    axios.get(`http://localhost:3001/api/reuniones/${reunionId}`)
+    axios.get(`${API_URL}/api/reuniones/${reunionId}`)
       .then(({ data }) => setMeeting(data))
       .catch(err => console.error('Error al cargar reunión', err));
 
    // Lista de quienes asistieron
-   axios.get(`http://localhost:3001/api/reuniones/${reunionId}/asistentes`)
+   axios.get(`${API_URL}/api/reuniones/${reunionId}/asistentes`)
      .then(({ data }) => setAsistieron(data))
      .catch(err => console.error('Error al cargar asistentes', err));
 
    // Lista de quienes faltaron
-   axios.get(`http://localhost:3001/api/reuniones/${reunionId}/faltantes`)
+   axios.get(`${API_URL}/api/reuniones/${reunionId}/faltantes`)
      .then(({ data }) => setNoAsistieron(data))
      .catch(err => console.error('Error al cargar faltantes', err));
   }, [reunionId]);

@@ -41,20 +41,22 @@ import {
   DeleteOutline as DeleteOutlineIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { API_URL } from "../../../../config/apiConfig";
+
 
 
 export default function AdminEncuestas() {
   // --- Estados de tabla y filtro ---
   const [encuestasList, setEncuestasList] = useState([]);
   const [search, setSearch] = useState('');
-  const [filterType, setFilterType] = useState('Todos'); // “Todos” | “Encuesta” | “Votación”
+  const [filterType, setFilterType] = useState('Todos'); // "Todos" | "Encuesta" | "Votación"
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const navigate = useNavigate();
 
   // Al montar, traemos todas las encuestas/votaciones desde el backend:
    useEffect(() => {
-     fetch('http://localhost:3001/api/encuestas-votaciones', {
+     fetch(`${API_URL}/api/encuestas-votaciones`, {
        method: 'GET',
        credentials: 'include' // si tu servidor usa cookies/autenticación
      })
@@ -112,7 +114,7 @@ export default function AdminEncuestas() {
       .filter(item => {
         if (filterType === 'Encuesta') return item.type === 'Encuesta';
         if (filterType === 'Votación') return item.type === 'Votación';
-        return true; // “Todos”
+        return true; // "Todos"
       });
   }, [encuestasList, search, filterType]);
 
@@ -306,8 +308,8 @@ const formatDateTime = (dateStr, timeStr) => {
     try {
       // Si editingId existe → PUT, si no → POST
       const url = editingId
-        ? `http://localhost:3001/api/encuestas-votaciones/${editingId}`
-       : 'http://localhost:3001/api/encuestas-votaciones/completo';
+        ? `${API_URL}/api/encuestas-votaciones/${editingId}`
+       : `${API_URL}/api/encuestas-votaciones/completo`;
       const method = editingId ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -332,7 +334,7 @@ const formatDateTime = (dateStr, timeStr) => {
 
       // Refrescamos la lista
       const listRes = await fetch(
-        'http://localhost:3001/api/encuestas-votaciones',
+        `${API_URL}/api/encuestas-votaciones`,
         { method: 'GET', credentials: 'include' }
       );
       if (listRes.ok) {
@@ -349,7 +351,7 @@ const formatDateTime = (dateStr, timeStr) => {
 const handleDelete = async id => {
    try {
      const res = await fetch(
-       `http://localhost:3001/api/encuestas-votaciones/${id}`,
+       `${API_URL}/api/encuestas-votaciones/${id}`,
        {
          method: 'DELETE',
          credentials: 'include'

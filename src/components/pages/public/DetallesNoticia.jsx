@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import axios from 'axios';
+import { API_URL } from "../../../config/apiConfig";
 
 function ImageCarousel({ images, height = 300, interval = 12000 }) {
   const [idx, setIdx] = useState(0);
@@ -63,7 +64,7 @@ export default function DetallesNoticia() {
   const [error,   setError]   = useState(null);
 
   useEffect(() => {
-    axios.get(`http://localhost:3001/api/noticias/${id}`)
+    axios.get(`${API_URL}/api/noticias/${id}`)
       .then(res => {
         setNoticia(res.data);
         setLoading(false);

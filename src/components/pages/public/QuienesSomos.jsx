@@ -20,6 +20,7 @@ import {
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import CloseIcon from "@mui/icons-material/Close";
 import axios from "axios";
+import { API_URL } from "../../../config/apiConfig";
 import "animate.css"; // Para las animaciones, si las tenías antes
 
 // ----------------------------------------------
@@ -61,7 +62,7 @@ const buildPyramidRows = (items) => {
 // ==============================================
 export default function QuienesSomos() {
   // --------------------------------------------------
-  // 1) Datos de “Quiénes Somos” (texto e imagen)
+  // 1) Datos de "Quiénes Somos" (texto e imagen)
   // --------------------------------------------------
   const [qs, setQs] = useState(null);
 
@@ -94,13 +95,13 @@ export default function QuienesSomos() {
 
   // --------------------------------------------------
   // useEffect (montaje)
-  //  a) Carga “Quiénes Somos”
+  //  a) Carga "Quiénes Somos"
   //  b) Carga todos los puestos
   // --------------------------------------------------
   useEffect(() => {
-    // ============= A) “Quiénes Somos” =============
+    // ============= A) "Quiénes Somos" =============
     axios
-      .get("http://localhost:3001/api/nosotros/vigentes")
+      .get(`${API_URL}/api/nosotros/vigentes`)
       .then(({ data }) => {
         const quien = data.find(
           (r) => r.seccion === "Quiénes Somos" && r.estado === "Vigente"
@@ -113,7 +114,7 @@ export default function QuienesSomos() {
 
     // ============= B) Todos los puestos =============
     axios
-      .get("http://localhost:3001/api/puestos")
+      .get(`${API_URL}/api/puestos`)
       .then(({ data }) => {
         /**
          * data es un arreglo de objetos:
@@ -145,8 +146,8 @@ export default function QuienesSomos() {
     fullName = `${row.usuario_nombre} ${row.usuario_apellido_paterno} ${row.usuario_apellido_materno || ""}`.trim();
   }
   return {
-    puestoId: row.puesto_id,          // si el backend te devuelve “puesto_id”
-    role: row.puesto_nombre,          // <-- aquí cambias a “puesto_nombre”
+    puestoId: row.puesto_id,          // si el backend te devuelve "puesto_id"
+    role: row.puesto_nombre,          // <-- aquí cambias a "puesto_nombre"
     user: row.usuario_id
       ? {
           id: row.usuario_id,
@@ -176,8 +177,8 @@ export default function QuienesSomos() {
 
   // --------------------------------------------------
   // Suponemos que en la BD ya has insertado los primeros
-  // X puestos que pertenecen al “Comité Ejecutivo” y luego
-  // los siguientes Y puestos para la “Comisión de Vigilancia…”.
+  // X puestos que pertenecen al "Comité Ejecutivo" y luego
+  // los siguientes Y puestos para la "Comisión de Vigilancia…".
   // Aquí, por simplicidad, vamos a tomar:
   //   - Los primeros 10 índices (0..9) → Comité Ejecutivo
   //   - El resto (10..13)            → Comisión de Vigilancia, Honor y Justicia
@@ -187,7 +188,7 @@ export default function QuienesSomos() {
   const comisionVHJ = allPuestos.slice(10, 20);
 
   // --------------------------------------------------
-  // Ahora dividimos cada grupo en “filas” piramidales:
+  // Ahora dividimos cada grupo en "filas" piramidales:
   //   comisiónEjecutivo: filas de 1, 2, 3, 4  (total 10)
   //   comisionVHJ:       filas de 1, 1, 2     (total 4)
   // --------------------------------------------------
@@ -295,7 +296,7 @@ if (start < comisionVHJ.length) {
           </Box>
 
           {/** -------------------- */}
-          {/** 1) “Comité Ejecutivo” */}
+          {/** 1) "Comité Ejecutivo" */}
           {/** -------------------- */}
           <Typography
             variant="subtitle1"
@@ -322,7 +323,7 @@ if (start < comisionVHJ.length) {
                 }}
               >
                 {fila.map((item, idx) => {
-                  // Cada “item” es { puestoId, role, user: {...} | null }
+                  // Cada "item" es { puestoId, role, user: {...} | null }
                   const fullName = item.user ? item.user.fullName : "";
                   return (
                     <Grid item key={"comite-" + rowIndex + "-" + idx}>
@@ -392,7 +393,7 @@ if (start < comisionVHJ.length) {
           ))}
 
           {/** ------------------------------------------------- */}
-          {/** 2) “Comisión de Vigilancia, Honor y Justicia”     */}
+          {/** 2) "Comisión de Vigilancia, Honor y Justicia"     */}
           {/** ------------------------------------------------- */}
           <Typography
             variant="subtitle1"

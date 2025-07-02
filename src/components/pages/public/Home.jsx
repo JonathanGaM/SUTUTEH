@@ -3,13 +3,14 @@ import { Box, Typography, Grid, Container } from "@mui/material";
 import { Link } from "react-router-dom";
 import { IconButton } from "@mui/material";
 
-
 import "animate.css";
 
 import misionVisionImg from "../../img/img.jpg"; // Imagen para misión y visión
 
 import { StyledButton } from "./StyledButton";
 import axios from "axios";
+import { API_URL } from "../../../config/apiConfig";
+
 // justo encima (o debajo) de `const Home = () => { … }`
 
 const MisionVisionCarousel = ({ images, height = 320 }) => {
@@ -70,7 +71,7 @@ const Home = () => {
 
   useEffect(() => {
     axios
-      .get("http://localhost:3001/api/datos-empresa")
+      .get(`${API_URL}/api/datos-empresa`)
       .then(({ data }) => {
         if (data.length) setCompany(data[0]);
       })
@@ -78,7 +79,7 @@ const Home = () => {
   }, []);
 
   useEffect(() => {
-    axios.get('http://localhost:3001/api/nosotros/vigentes')
+    axios.get(`${API_URL}/api/nosotros/vigentes`)
   .then(({ data }) => setNosotros(data))
   .catch(console.error)
 }, []);

@@ -1,3 +1,4 @@
+
 // src/components/layout/AgremiadosHeader.jsx
 import React, { useState, useEffect } from "react";
 import {
@@ -41,6 +42,7 @@ import ArrowDropUpIcon from "@mui/icons-material/ArrowDropUp"; // Flecha hacia a
 import CloseIcon from "@mui/icons-material/Close"; // Icono para cerrar el diálogo
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import axios from 'axios';
+import { API_URL } from "../../config/apiConfig";
 
 import logo from "../img/logo1.jpeg"; // Logo del SUTUTEH
 import CustomizedBreadcrumbs from "../layout/CustomizedBreadcrumbs";
@@ -172,7 +174,7 @@ function AgremiadosHeader() {
   
   
   useEffect(() => {
-        axios.get("http://localhost:3001/api/datos-empresa")
+        axios.get(`${API_URL}/api/datos-empresa`)
           .then(({ data }) => {
             if (data.length) setCompany(data[0]);
           })
@@ -214,7 +216,7 @@ function AgremiadosHeader() {
    // New: Logout handler
    const handleLogout = async () => {
     try {
-      await axios.post('http://localhost:3001/api/login/logout', {}, { withCredentials: true });
+      await axios.post(`${API_URL}/api/login/logout`, {}, { withCredentials: true });
     } catch (err) {
       console.error('Error en logout:', err);
     } finally {

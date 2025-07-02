@@ -14,6 +14,7 @@ import {
   Link
 } from "@mui/material";
 import { Email, Phone, LocationOn, Facebook } from "@mui/icons-material";
+import { API_URL } from "../../../config/apiConfig";
 
 const Contacto = () => {
   const [formData, setFormData] = useState({
@@ -63,7 +64,7 @@ const handleSubmit = async () => {
   };
 
   try {
-    const res = await fetch("http://localhost:3001/api/preguntas", {
+    const res = await fetch(`${API_URL}/api/preguntas`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -337,5 +338,3 @@ const handleSubmit = async () => {
 };
 
 export default Contacto;
-
-

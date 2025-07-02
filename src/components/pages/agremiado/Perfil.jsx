@@ -39,7 +39,7 @@ import { deepOrange } from "@mui/material/colors";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { useNavigate } from 'react-router-dom';
-
+import { API_URL } from "../../../config/apiConfig";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -130,7 +130,7 @@ const handleSavePhoto = async () => {
     formData.append("imagen", photo);
 
     const { data } = await axios.post(
-      "http://localhost:3001/api/perfilAgremiado/foto",
+      `${API_URL}/api/perfilAgremiado/foto`,
       formData
     );
 
@@ -217,7 +217,7 @@ const handleSavePhoto = async () => {
   const handleOpenSurvey = async (id) => {
   try {
     // Traemos la lista completa (incluye preguntas y opciones anidadas)
-    const { data: all } = await axios.get("http://localhost:3001/api/encuestas-votaciones");
+    const { data: all } = await axios.get(`${API_URL}/api/encuestas-votaciones`);
     const survey = all.find((e) => e.id === id);
     if (survey) {
       setSelectedSurveyDetails(survey);
@@ -359,12 +359,12 @@ const handleSavePhoto = async () => {
  // --- fetch del perfil usando la cookie JWT ---
 useEffect(() => {
   // 1) Traemos datos del usuario
-  axios.get("http://localhost:3001/api/perfilAgremiado")
+  axios.get(`${API_URL}/api/perfilAgremiado`)
     .then(({ data }) => {
       setUserData(data);
 
       // 2) Una vez que terminó de cargar userData, consultamos si hay encuestas/votaciones activas sin responder
-      return axios.get("http://localhost:3001/api/encuestas-votaciones/activas-usuario");
+      return axios.get(`${API_URL}/api/encuestas-votaciones/activas-usuario`);
     })
     .then(({ data: pendientes }) => {
       // Si vinieron encuestas/votaciones activas, abrimos el diálogo
@@ -700,7 +700,7 @@ if (!userData) {
           {selectedTab === 3 && renderAccessSection()}
         </CardContent>
       </Card>
-            {/* ——— Primer diálogo: “Tienes encuestas/votaciones pendientes” ——— */}
+            {/* ——— Primer diálogo: "Tienes encuestas/votaciones pendientes" ——— */}
       <Dialog
         open={openPendingDialog}
         disableEscapeKeyDown
@@ -839,7 +839,7 @@ if (!userData) {
 
            // 2) Hacemos POST al endpoint de respuestas:
            await axios.post(
-             "http://localhost:3001/api/encuestas-votaciones/respuestas",
+             `${API_URL}/api/encuestas-votaciones/respuestas`,
              payload
            );
 

@@ -100,6 +100,7 @@ function Layout() {
     "/encuestas_votaciones"
   ];
   const adminPaths = [
+    "/panel-admin",
     "/auditoria",
     "/datos-empresa",
     "/admin_filosofia",

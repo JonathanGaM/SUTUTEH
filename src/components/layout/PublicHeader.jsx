@@ -29,6 +29,7 @@ import { styled, keyframes } from "@mui/material/styles";
 import logo from "../img/logo1.jpeg";
 import CustomizedBreadcrumbs from "../layout/CustomizedBreadcrumbs";
 import axios from "axios";
+import { API_URL } from "../../config/apiConfig";
 
 // Datos de navegación
 const pages = [
@@ -170,7 +171,7 @@ function PublicHeader() {
   }, [currentPath]);
     
   useEffect(() => {
-       axios.get("http://localhost:3001/api/datos-empresa")
+       axios.get(`${API_URL}/api/datos-empresa`)
          .then(({ data }) => {
            if (data.length) setCompany(data[0]);
          })

@@ -33,6 +33,7 @@ import {
   import logo from "../img/logo1.jpeg";
   import DownloadIcon from "@mui/icons-material/Download";
   import axios from 'axios';
+  import { API_URL } from "../../config/apiConfig";
 
   // Ícono personalizado para Leaflet (ubicación)
   const customIcon = new L.Icon({
@@ -70,12 +71,12 @@ import {
 
     useEffect(() => {
       axios
-        .get("http://localhost:3001/api/documentos-regulatorios/public")
+        .get(`${API_URL}/api/documentos-regulatorios/public`)
         .then(({ data }) => setPolicies(data))
         .catch((err) => console.error("Error fetching public policies:", err));
     }, []);
     useEffect(() => {
-      axios.get("http://localhost:3001/api/datos-empresa")
+      axios.get(`${API_URL}/api/datos-empresa`)
         .then(({data}) => {
           if (data.length) setCompany(data[0]);
         })
@@ -220,7 +221,7 @@ import {
               </Typography>
             </Grid>
 
-            {/* … dentro de tu Grid de “Ubicación” … */}
+            {/* … dentro de tu Grid de "Ubicación" … */}
             <Grid item xs={12} sm={6} md={3} textAlign="center">
               <Typography variant="h6" fontWeight="bold" mb={1} fontSize="1rem">
                 Ubicación

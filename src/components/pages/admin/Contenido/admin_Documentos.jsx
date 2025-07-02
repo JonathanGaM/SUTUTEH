@@ -23,8 +23,7 @@ import {
   UploadFile as UploadFileIcon
 } from '@mui/icons-material';
 
-// Base URL for metadata CRUD
-const API_BASE = 'http://localhost:3001/api/documentos';
+
 // Direct PHP endpoint for file upload
 const UPLOAD_PHP_URL = 'https://portal.sututeh.com/upload.php';
 
@@ -50,7 +49,7 @@ export default function AdminDocumentos() {
 
   useEffect(() => {
     fetchDocumentos();
-    axios.get(`${API_BASE}/categorias`)
+    axios.get(`/api/documentos/categorias`)
       .then(({ data }) => setCategories(data))
       .catch(err => {
         console.error('Error cargando categorías', err);
@@ -60,7 +59,7 @@ export default function AdminDocumentos() {
 
   const fetchDocumentos = async () => {
     try {
-      const { data } = await axios.get(API_BASE);
+      const { data } = await axios.get(`/api/documentos`);
       setDocsList(data.map(d => ({
         id: d.id,
         nombre: d.nombre,
@@ -114,7 +113,7 @@ export default function AdminDocumentos() {
       await axios.delete(UPLOAD_PHP_URL, { data: { file: fileName } });
 
       // 1.b) Borra el registro en la base de datos
-      await axios.delete(`${API_BASE}/${item.id}`);
+      await axios.delete(`/api/documentos/${item.id}`);
 
       showSnackbar('Documento y archivo eliminados');
       fetchDocumentos();
@@ -143,7 +142,7 @@ const handleSubmit = async e => {
       const fdPort = new FormData();
       fdPort.append('portada', docForm.imgPortada);
       const { data } = await axios.post(
-        `${API_BASE}/subirPortada`,
+        `/api/documentos/subirPortada`,
         fdPort,
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
@@ -164,7 +163,7 @@ const handleSubmit = async e => {
       if (portadaUrl) formData.append('portada', docForm.imgPortada);
 
       await axios.put(
-        `${API_BASE}/${editingDoc.id}/metadata`,
+        `/api/documentos/${editingDoc.id}/metadata`,
         formData,
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
@@ -188,7 +187,7 @@ const handleSubmit = async e => {
         imgPortada: portadaUrl,
         archivoUrl: fileUrl
       };
-      await axios.post(API_BASE, payload);
+      await axios.post(`/api/documentos`, payload);
       showSnackbar('Documento creado');
     }
 

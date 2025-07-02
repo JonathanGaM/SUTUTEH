@@ -1,6 +1,7 @@
 // src/routes/AdminRoutes.jsx
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
+import PanelAdmin from '../pages/admin/panelAdmin';
 
 import Auditoria from '../pages/admin/MonitoreoIncidencias/Auditoria';
 import DatosdeEmpresa from '../pages/admin/PerfilEmpresa/DatosdeEmpresa';
@@ -32,6 +33,8 @@ const AdminRoutes = () => {
   return (
    
       <Routes>
+        {/* === DASHBOARD PRINCIPAL === */}
+      <Route path="/panel-admin" element={<PanelAdmin />} />  
         {/* === PERFIL DE EMPRESA === */}
         
         <Route path="/datos-empresa" element={<DatosdeEmpresa />} />

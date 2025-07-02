@@ -34,6 +34,7 @@ import {
   Legend as BarLegend,
   ResponsiveContainer as BarResponsiveContainer
 } from 'recharts';
+import { API_URL } from "../../../../config/apiConfig";
 
 export default function EstadisticasEncuestasVotos() {
   const { id } = useParams();
@@ -45,7 +46,7 @@ export default function EstadisticasEncuestasVotos() {
   const barColors = ['#0088FE', '#FF6384', '#00C49F', '#FFBB28', '#FF8042', '#A28FD0'];
 
   useEffect(() => {
-    fetch(`http://localhost:3001/api/encuestas-votaciones/${id}/estadisticas`, {
+    fetch(`${API_URL}/api/encuestas-votaciones/${id}/estadisticas`, {
       credentials: 'include'
     })
       .then(res => {

@@ -30,9 +30,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import DownloadIcon from '@mui/icons-material/Download';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-
-// Base URL para la API de transparencia
-const API_BASE = 'http://localhost:3001/api/transparencia';
+import { API_URL } from '../../../config/apiConfig';
 
 export default function Transparencia() {
   const [items, setItems] = useState([]);
@@ -58,8 +56,8 @@ export default function Transparencia() {
       
       // Cargar documentos y categorías en paralelo
       const [documentsRes, categoriesRes] = await Promise.all([
-        axios.get(API_BASE),
-        axios.get(`${API_BASE}/categorias`)
+        axios.get(`${API_URL}/api/transparencia`),
+        axios.get(`${API_URL}/api/transparencia/categorias`)
       ]);
 
       // Transformar datos de documentos

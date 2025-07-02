@@ -39,7 +39,7 @@ import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import YouTubeIcon    from "@mui/icons-material/YouTube";
 import MusicNoteIcon  from "@mui/icons-material/MusicNote"
 import axios from "axios";
-
+import { API_URL } from "../../../../config/apiConfig";
 
 import { Delete as DeleteIcon } from "@mui/icons-material";
 
@@ -113,7 +113,7 @@ const [focusCoord, setFocusCoord] = useState({ lat: false, lng: false });
        
        const saveField = async (field) => {
           try {
-             await axios.put(`http://localhost:3001/api/datos-empresa/${empresa.id}`, {
+             await axios.put(`${API_URL}/api/datos-empresa/${empresa.id}`, {
                [field]: empresa[field]
            });
            showSnack("Guardado exitoso");
@@ -136,7 +136,7 @@ const [focusCoord, setFocusCoord] = useState({ lat: false, lng: false });
     try {
       // Llamas al endpoint que creaste en el back: PUT /api/datos-empresa/:empresaId/redes/:id
       await axios.put(
-        `http://localhost:3001/api/datos-empresa/${empresa.id}/redes/${id}`,
+        `${API_URL}/api/datos-empresa/${empresa.id}/redes/${id}`,
         {
           enlace: editEnlace,
           estado: editEstado,
@@ -175,7 +175,7 @@ const [focusCoord, setFocusCoord] = useState({ lat: false, lng: false });
     }
     try {
       const { data } = await axios.post(
-        `http://localhost:3001/api/datos-empresa/${empresa.id}/redes`,
+        `${API_URL}/api/datos-empresa/${empresa.id}/redes`,
         {
           red_social: newRed.redSocial,
           enlace:     newRed.enlace,
@@ -199,7 +199,7 @@ const [focusCoord, setFocusCoord] = useState({ lat: false, lng: false });
   const handleDeleteSocial = async (id) => {
     try {
       await axios.delete(
-        `http://localhost:3001/api/datos-empresa/${empresa.id}/redes/${id}`
+        `${API_URL}/api/datos-empresa/${empresa.id}/redes/${id}`
       );
       setSocialData(prev => prev.filter(item => item.id !== id));
       showSnack("Red social eliminada");
@@ -246,7 +246,7 @@ const coverFileInputRef = useRef(null);
     form.append("avatar", avatarFile);
     try {
       const { data } = await axios.put(
-        `http://localhost:3001/api/datos-empresa/${empresa.id}`,
+        `${API_URL}/api/datos-empresa/${empresa.id}`,
         form,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
@@ -294,7 +294,7 @@ const handleSaveCover = async () => {
   form.append("cover", coverFile);
   try {
     const { data } = await axios.put(
-      `http://localhost:3001/api/datos-empresa/${empresa.id}`,
+      `${API_URL}/api/datos-empresa/${empresa.id}`,
       form,
       { headers: { "Content-Type": "multipart/form-data" } }
     );
@@ -316,7 +316,7 @@ const handleSaveCover = async () => {
   };
 
   useEffect(() => {
-    axios.get('http://localhost:3001/api/datos-empresa')
+    axios.get(`${API_URL}/api/datos-empresa`)
       .then(({ data }) => {
         if (data.length) {
           const emp = data[0];

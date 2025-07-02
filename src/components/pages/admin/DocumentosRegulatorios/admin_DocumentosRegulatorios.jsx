@@ -33,6 +33,8 @@ import DeleteIcon from '@mui/icons-material/DeleteOutlined';
 import DescriptionIcon from '@mui/icons-material/Description';
 import axios from "axios";
 
+import { API_URL } from "../../../../config/apiConfig";
+
 const sectionOptions = [
   "Políticas de Servicio",
   "Políticas de Privacidad",
@@ -59,7 +61,7 @@ export default function DocumentosRegulatorios() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [toDeleteId, setToDeleteId] = useState(null);
 
-  const API = "http://localhost:3001/api/documentos-regulatorios";
+  const API = `${API_URL}/api/documentos-regulatorios`;
 
   // Carga inicial y recargas
   const loadVersions = async () => {
