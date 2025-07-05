@@ -46,6 +46,7 @@ import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
 import axios from "axios";
 
 import { API_URL } from "../../config/apiConfig";
+import CustomizedBreadcrumbs from "../layout/CustomizedBreadcrumbs";
 
 
 // Logo que se muestra en el Drawer
@@ -164,6 +165,15 @@ const DrawerHeader = styled('div')(({ theme }) => ({
   // Eliminamos theme.mixins.toolbar y establecemos una altura más baja
   height: 45,
   padding: theme.spacing(0, 1),
+}));
+// 2. AGREGAR este styled component después de DrawerHeader:
+const BreadcrumbsContainer = styled(Box)(({ theme }) => ({
+  backgroundColor: "#fff",
+  padding: theme.spacing(1, 2),
+  display: "flex",
+  justifyContent: "flex-start", // Alineado a la izquierda para admin
+  alignItems: "center",
+  borderBottom: "1px solid #e0e0e0", // Línea sutil para separar
 }));
 
 // Estructura del menú
@@ -286,9 +296,15 @@ export default function AdminHeader({ children }) {
     }));
   };
 
-  const handleLogout = () => {
-    console.log("Cerrar sesión");
-  };
+ const handleLogout = async () => {
+  try {
+    await axios.post(`${API_URL}/api/login/logout`, {}, { withCredentials: true });
+  } catch (err) {
+    console.error('Error en logout:', err);
+  } finally {
+    window.location.href = '/login';
+  }
+};
 
   return (
     <Box sx={{ display: "flex" }}>
@@ -523,7 +539,17 @@ export default function AdminHeader({ children }) {
 
       <Main open={drawerOpen}>
         <DrawerHeader />
+              {/* AGREGAR ESTA SECCIÓN */}
+  <BreadcrumbsContainer>
+    <Box sx={{ 
+      width: "100%", 
+      textAlign: "left" 
+    }}>
+      <CustomizedBreadcrumbs />
+    </Box>
+  </BreadcrumbsContainer>
         {children}
+  
       </Main>
     </Box>
   );

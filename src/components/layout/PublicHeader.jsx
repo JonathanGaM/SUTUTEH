@@ -31,6 +31,7 @@ import CustomizedBreadcrumbs from "../layout/CustomizedBreadcrumbs";
 import axios from "axios";
 import { API_URL } from "../../config/apiConfig";
 
+
 // Datos de navegación
 const pages = [
   { label: "Inicio", path: "/", icon: <HomeIcon /> },

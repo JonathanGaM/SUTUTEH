@@ -5,6 +5,7 @@ import Layout from "./components/layout/Layout";
 import axios from 'axios';
 import { configureAxios } from './config/apiConfig';
 
+
 configureAxios(axios);
 
 function App() {

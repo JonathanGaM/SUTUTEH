@@ -9,8 +9,10 @@ import ContactoAgremiado from "../pages/agremiado/ContactoAgremiado";
 import Reuniones from "../pages/agremiado/Reuniones";
 import EncuestasVotaciones from "../pages/agremiado/EncuestasVotaciones";
 
+
 function AgremiadosRoutes() {
   return (
+    
     <Routes>
       <Route path="/reuniones" element={<Reuniones />} />
       <Route path="/encuestas_votaciones" element={<EncuestasVotaciones />} />

@@ -1,6 +1,6 @@
 // RecuperarContrasena.jsx
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Container,
@@ -21,9 +21,10 @@ import { Link as RouterLink } from "react-router-dom";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import ReCAPTCHA from "react-google-recaptcha";
 import axios from "axios";
+import { API_URL } from "../../../config/apiConfig";
 
 // Definir endpoints de la API
-const API_BASE_URL = "http://localhost:3001/api/recuperarContrasena";
+const API_BASE_URL = `${API_URL}/api/recuperarContrasena`;
 const VERIFY_CORREO_CAPTCHA_URL = `${API_BASE_URL}/verificarCorreoCaptcha`;
 const ENVIAR_CODIGO_URL = `${API_BASE_URL}/enviarCodigo`;
 const VERIFICAR_CODIGO_URL = `${API_BASE_URL}/verificarCodigo`;
@@ -46,6 +47,7 @@ function RecuperarContrasena() {
     }
   };
 
+  const captchaRef = useRef(null);
   const [activeStep, setActiveStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -83,7 +85,7 @@ function RecuperarContrasena() {
     severity: "success"
   });
 
-  // Función para calcular fortaleza de contraseña (misma lógica que en Registro.jsx)
+  // Función para calcular fortaleza de contraseña
   const getPasswordStrength = (pwd) => {
     const strength = {
       score: 0,
@@ -143,6 +145,13 @@ function RecuperarContrasena() {
   const toggleShowNewPassword = () => setShowNewPassword((prev) => !prev);
   const toggleShowConfirmNewPassword = () => setShowConfirmNewPassword((prev) => !prev);
 
+  const resetCaptcha = () => {
+    if (captchaRef.current) {
+      captchaRef.current.reset();
+    }
+    setCaptchaValue(null);
+  };
+
   const handleNext = async () => {
     // Paso 0: Verificar correo y reCAPTCHA, enviar código
     if (activeStep === 0) {
@@ -155,17 +164,21 @@ function RecuperarContrasena() {
       }
       if (Object.keys(newErrors).length > 0) {
         setErrors(newErrors);
+        resetCaptcha();
         return;
       }
       setErrors({});
+      
       try {
         // Verificar correo y captcha en el backend
         await axios.post(VERIFY_CORREO_CAPTCHA_URL, {
           email,
           tokenCaptcha: captchaValue
         });
+        
         // Enviar código de recuperación
         await axios.post(ENVIAR_CODIGO_URL, { email });
+        
         setSnackbar({
           open: true,
           message: "Código de recuperación enviado a tu correo.",
@@ -173,7 +186,9 @@ function RecuperarContrasena() {
         });
         setActiveStep(activeStep + 1);
       } catch (error) {
-        setErrors({ email: error.response?.data?.error || "Error al verificar correo y captcha." });
+        const errorMessage = error.response?.data?.error || "Error al verificar correo y captcha.";
+        setErrors({ email: errorMessage });
+        resetCaptcha();
       }
     }
     // Paso 1: Verificar código de verificación
@@ -187,11 +202,13 @@ function RecuperarContrasena() {
         return;
       }
       setErrors({});
+      
       try {
         await axios.post(VERIFICAR_CODIGO_URL, {
           email,
           codigo: verificationCode
         });
+        
         setSnackbar({
           open: true,
           message: "Código verificado correctamente.",
@@ -199,9 +216,8 @@ function RecuperarContrasena() {
         });
         setActiveStep(activeStep + 1);
       } catch (error) {
-        setErrors({
-          verificationCode: error.response?.data?.error || "Error al verificar el código."
-        });
+        const errorMessage = error.response?.data?.error || "Error al verificar el código.";
+        setErrors({ verificationCode: errorMessage });
       }
     }
     // Paso 2: Validar y actualizar la nueva contraseña
@@ -221,24 +237,27 @@ function RecuperarContrasena() {
       }
       setErrors({});
       setIsSubmitting(true);
+      
       try {
         await axios.post(ACTUALIZAR_CONTRASENA_URL, {
           email,
           password: newPassword,
           confirmPassword: confirmNewPassword
         });
+        
         setSnackbar({
           open: true,
           message: "Contraseña actualizada correctamente.",
           severity: "success"
         });
+        
         setTimeout(() => {
           window.location.href = "/login";
         }, 1500);
       } catch (error) {
-        setErrors({
-          newPassword: error.response?.data?.error || "Error al actualizar la contraseña."
-        });
+        const errorMessage = error.response?.data?.error || "Error al actualizar la contraseña.";
+        setErrors({ newPassword: errorMessage });
+        setIsSubmitting(false);
       }
     }
   };
@@ -292,6 +311,7 @@ function RecuperarContrasena() {
             >
               <Box sx={{ transform: "scale(0.9)", transformOrigin: "center" }}>
                 <ReCAPTCHA
+                  ref={captchaRef}
                   sitekey="6Lf7gIAqAAAAALfemazpV_kuaVgRHQNgrFi8pQkD"
                   onChange={(value) => {
                     setCaptchaValue(value);
@@ -339,131 +359,154 @@ function RecuperarContrasena() {
         );
       case 2:
         return (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <TextField
-              size="small"
-              label="Nueva Contraseña"
-              variant="outlined"
-              margin="dense"
-              type={showNewPassword ? "text" : "password"}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              error={Boolean(errors.newPassword)}
-              helperText={errors.newPassword}
-              sx={{ width: "90%", mx: "auto", ...inputStyles }}
-              onFocus={() => setShowPasswordRequirements(true)}
-              onBlur={() => setShowPasswordRequirements(false)}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={toggleShowNewPassword} edge="end">
-                      {showNewPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                )
-              }}
-            />
-
-            {/* Sección del medidor de fortaleza */}
-            {showPasswordRequirements && (
-              <Box
-                sx={{
-                  width: "90%",
-                  mx: "auto",
-                  mt: -1,
-                  mb: 1,
-                  backgroundColor: "rgb(222, 217, 212)",
-                  padding: 1,
-                  borderRadius: 1,
-                  boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-                  border: "1px solid rgb(198, 255, 128)"
+          <>
+            <style>{`
+              .password-strength-display {
+                width: 90%;
+                margin: -1rem auto 1rem auto;
+                background-color: #ded9d4;
+                padding: 1rem;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                border: 1px solid #c6ff80;
+              }
+              .password-strength-bar {
+                margin-bottom: 0.5rem;
+              }
+              .password-strength-text {
+                font-size: 0.9rem;
+                font-weight: bold;
+                margin-bottom: 0.5rem;
+              }
+              .password-requirements {
+                text-align: left;
+              }
+              .password-requirements .requirement {
+                font-size: 0.8rem;
+                font-weight: 300;
+                margin: 0.2rem 0;
+              }
+              .requirement.invalid {
+                color: red;
+              }
+              .requirement.valid {
+                color: green;
+              }
+            `}</style>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <TextField
+                size="small"
+                label="Nueva Contraseña"
+                variant="outlined"
+                margin="dense"
+                type={showNewPassword ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                error={Boolean(errors.newPassword)}
+                helperText={errors.newPassword}
+                sx={{ width: "90%", mx: "auto", ...inputStyles }}
+                onFocus={() => setShowPasswordRequirements(true)}
+                onBlur={() => setShowPasswordRequirements(false)}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton onClick={toggleShowNewPassword} edge="end">
+                        {showNewPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
                 }}
-              >
-                <Box sx={{ mb: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-                    {passwordStrength.score === 0
-                      ? "Muy Débil"
-                      : passwordStrength.score === 1
-                      ? "Débil"
-                      : passwordStrength.score === 2
-                      ? "Regular"
-                      : passwordStrength.score === 3
-                      ? "Fuerte"
-                      : "Muy Fuerte"}
-                  </Typography>
-                  <Box
-                    sx={{
-                      width: "100%",
-                      height: "10px",
-                      backgroundColor: "#ccc",
-                      borderRadius: "5px"
-                    }}
-                  >
+              />
+
+              {/* Medidor de fortaleza de contraseña */}
+              {showPasswordRequirements && (
+                <div className="password-strength-display">
+                  <div className="password-strength-bar">
+                    <div className="password-strength-text">
+                      {passwordStrength.score === 0
+                        ? "Muy Débil"
+                        : passwordStrength.score === 1
+                        ? "Débil"
+                        : passwordStrength.score === 2
+                        ? "Regular"
+                        : passwordStrength.score === 3
+                        ? "Fuerte"
+                        : "Muy Fuerte"}
+                    </div>
                     <Box
                       sx={{
+                        width: "100%",
                         height: "10px",
-                        borderRadius: "5px",
-                        width: `${passwordStrength.score * 16}%`,
-                        backgroundColor:
-                          passwordStrength.score === 0
-                            ? "red"
-                            : passwordStrength.score === 1
-                            ? "orange"
-                            : passwordStrength.score === 2
-                            ? "yellow"
-                            : passwordStrength.score === 3
-                            ? "lightgreen"
-                            : "green",
-                        transition: "width 0.3s ease-in-out"
+                        backgroundColor: "#ccc",
+                        borderRadius: "5px"
                       }}
-                    />
-                  </Box>
-                </Box>
-                <Box>
-                  <Typography variant="body2" sx={{ fontWeight: 300, fontSize: "0.8rem" }} color={passwordStrength.length ? "green" : "red"}>
-                    • Mínimo 8 caracteres
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 300, fontSize: "0.8rem" }} color={passwordStrength.lowercase ? "green" : "red"}>
-                    • Al menos una letra minúscula
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 300, fontSize: "0.8rem" }} color={passwordStrength.uppercase ? "green" : "red"}>
-                    • Al menos una letra mayúscula
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 300, fontSize: "0.8rem" }} color={passwordStrength.number ? "green" : "red"}>
-                    • Al menos un número
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 300, fontSize: "0.8rem" }} color={passwordStrength.special ? "green" : "red"}>
-                    • Al menos un carácter especial
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 300, fontSize: "0.8rem" }} color={passwordStrength.commonPatterns ? "green" : "red"}>
-                    • No usar patrones comunes (e.g., "123", "abc")
-                  </Typography>
-                </Box>
-              </Box>
-            )}
+                    >
+                      <Box
+                        sx={{
+                          height: "10px",
+                          borderRadius: "5px",
+                          width: `${passwordStrength.score * 25}%`,
+                          backgroundColor:
+                            passwordStrength.score === 0
+                              ? "red"
+                              : passwordStrength.score === 1
+                              ? "orange"
+                              : passwordStrength.score === 2
+                              ? "yellow"
+                              : passwordStrength.score === 3
+                              ? "lightgreen"
+                              : "green",
+                          transition: "width 0.3s ease-in-out"
+                        }}
+                      />
+                    </Box>
+                  </div>
+                  <div className="password-requirements">
+                    <div className={`requirement ${passwordStrength.length ? "valid" : "invalid"}`}>
+                      • Mínimo 8 caracteres
+                    </div>
+                    <div className={`requirement ${passwordStrength.lowercase ? "valid" : "invalid"}`}>
+                      • Al menos una letra minúscula
+                    </div>
+                    <div className={`requirement ${passwordStrength.uppercase ? "valid" : "invalid"}`}>
+                      • Al menos una letra mayúscula
+                    </div>
+                    <div className={`requirement ${passwordStrength.number ? "valid" : "invalid"}`}>
+                      • Al menos un número
+                    </div>
+                    <div className={`requirement ${passwordStrength.special ? "valid" : "invalid"}`}>
+                      • Al menos un carácter especial
+                    </div>
+                    <div className={`requirement ${passwordStrength.commonPatterns ? "valid" : "invalid"}`}>
+                      • No usar patrones comunes (e.g., "123", "abc")
+                    </div>
+                  </div>
+                </div>
+              )}
 
-            <TextField
-              size="small"
-              label="Confirmar Nueva Contraseña"
-              variant="outlined"
-              margin="dense"
-              type={showConfirmNewPassword ? "text" : "password"}
-              value={confirmNewPassword}
-              onChange={(e) => setConfirmNewPassword(e.target.value)}
-              error={Boolean(errors.confirmNewPassword)}
-              helperText={errors.confirmNewPassword}
-              sx={{ width: "90%", mx: "auto", ...inputStyles }}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={toggleShowConfirmNewPassword} edge="end">
-                      {showConfirmNewPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                )
-              }}
-            />
-          </Box>
+              <TextField
+                size="small"
+                label="Confirmar Nueva Contraseña"
+                variant="outlined"
+                margin="dense"
+                type={showConfirmNewPassword ? "text" : "password"}
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                error={Boolean(errors.confirmNewPassword)}
+                helperText={errors.confirmNewPassword}
+                sx={{ width: "90%", mx: "auto", ...inputStyles }}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton onClick={toggleShowConfirmNewPassword} edge="end">
+                        {showConfirmNewPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Box>
+          </>
         );
       default:
         return "Paso desconocido";
@@ -547,13 +590,13 @@ function RecuperarContrasena() {
               <Typography variant="body2">
                 ¿Ya tienes una cuenta?{" "}
                 <Link
-                component={RouterLink}
-                to="/login"
-                variant="body2"
-                sx={{ color: "#2e7d32" }}
-              >
-                Inicia sesión
-              </Link>
+                  component={RouterLink}
+                  to="/login"
+                  variant="body2"
+                  sx={{ color: "#2e7d32" }}
+                >
+                  Inicia sesión
+                </Link>
               </Typography>
             </Box>
           )}
