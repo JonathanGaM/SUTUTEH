@@ -208,7 +208,7 @@ const menuItems = [
     icon: <HowToVoteIcon />,
     subItems: [
       { title: "Encuestas", path: "/admin_encuestas", icon: <HowToVoteIcon /> },
-      { title: "Estadísticas", path: "/estadisticas_encuestas", icon: <AssessmentIcon /> },
+      { title: "Estadísticas", path: "/estadisticas_anual", icon: <AssessmentIcon /> },
       { title: "Votaciones", path: "/admin_votaciones", icon: <HowToVoteIcon /> },
       { title: "Reuniones", path: "/admin_reuniones", icon: <HowToVoteIcon /> },
     ]

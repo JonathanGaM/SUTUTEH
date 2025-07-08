@@ -1,5 +1,5 @@
-// src/pages/Reuniones.jsx
-import React, { useState, useRef, useMemo,useEffect } from "react";
+// src/pages/Reuniones.jsx - MODIFICADO
+import React, { useState, useRef, useMemo, useEffect } from "react";
 import axios from "axios";
 import { Html5Qrcode } from "html5-qrcode";
 import { API_URL } from "../../../config/apiConfig";
@@ -18,7 +18,7 @@ import {
   Snackbar,
   Alert,
   Chip,
-   TableContainer,
+  TableContainer,
   Table,
   TableHead,
   TableRow,
@@ -33,36 +33,49 @@ import moment from "moment";
 import "moment/locale/es";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 
-const columns = [
-  { field: "title", headerName: "Título", flex: 1, minWidth: 150 },
-  { field: "description", headerName: "Descripción", flex: 2, minWidth: 250 },
-  
-  {
-    field: "estado",
-    headerName: "Estado",
-    flex: 1,
-    minWidth: 120,
-    renderCell: (params) => {
-      // params.value debe ser "Asistió" o "No asistió"
-      const label = params.value || "No asistió";
-      const color = label === "Asistió" ? "primary" : "warning";
-      return <Chip label={label} size="small" color={color} sx={{ color: "white" }} />;
-    }
+// Función para obtener el color del chip según el estado de asistencia
+const getAsistenciaColor = (estado) => {
+  switch (estado) {
+    case 'asistencia_completa':
+      return 'success';
+    case 'retardo':
+      return 'warning';
+    case 'falta_justificada':
+      return 'info';
+    case 'falta_no_justificada':
+      return 'error';
+    default:
+      return 'default';
   }
-];
+};
+
+// Función para obtener el label amigable del estado de asistencia
+const getAsistenciaLabel = (estado) => {
+  switch (estado) {
+    case 'asistencia_completa':
+      return 'Asistencia Completa';
+    case 'retardo':
+      return 'Retardo';
+    case 'falta_justificada':
+      return 'Falta Justificada';
+    case 'falta_no_justificada':
+      return 'Falta No Justificada';
+    default:
+      return 'Sin Registrar';
+  }
+};
 
 export default function Reuniones() {
   const scannerId = "qr-reader";
   const [rows, setRows] = useState([]);
   const [openScanner, setOpenScanner] = useState(false);
 
-    // Calendario
+  // Calendario
   const localizer = momentLocalizer(moment);
   moment.locale("es");
   const [calView, setCalView] = useState(Views.MONTH);
   const [calDate, setCalDate] = useState(new Date());
   const [todasLasReuniones, setTodasLasReuniones] = useState([]);
-
 
   // Paginación para la tabla manual
   const [page, setPage] = useState(0);
@@ -81,53 +94,54 @@ export default function Reuniones() {
   };
 
   const messagesEs = {
-  allDay: "Todo el día",
-  previous: "Atrás",
-  next: "Próximo",
-  today: "Hoy",
-  month: "Mes",
-  week: "Semana",
-  day: "Día",
-  agenda: "Agenda",
-  date: "Fecha",
-  time: "Hora",
-  event: "Evento",
-  noEventsInRange: "No hay eventos en este rango.",
-  showMore: (total) => `+ Ver más (${total})`,
-};
+    allDay: "Todo el día",
+    previous: "Atrás",
+    next: "Próximo",
+    today: "Hoy",
+    month: "Mes",
+    week: "Semana",
+    day: "Día",
+    agenda: "Agenda",
+    date: "Fecha",
+    time: "Hora",
+    event: "Evento",
+    noEventsInRange: "No hay eventos en este rango.",
+    showMore: (total) => `+ Ver más (${total})`,
+  };
 
   // Cargar reuniones al montar
   useEffect(() => {
-      // 1) Cargar TODAS las reuniones (para el calendario)
-  axios
-    .get(`${API_URL}/api/reuniones`)
-    .then(({ data }) => {
-      setTodasLasReuniones(data);
-    })
-    .catch((err) =>
-      console.error("Error cargando todas las reuniones:", err)
-    );
+    // 1) Cargar TODAS las reuniones (para el calendario)
+    axios
+      .get(`${API_URL}/api/reuniones`)
+      .then(({ data }) => {
+        setTodasLasReuniones(data);
+      })
+      .catch((err) =>
+        console.error("Error cargando todas las reuniones:", err)
+      );
 
-  axios
-     .get(`${API_URL}/api/reuniones/usuario/asistencia`, { withCredentials: true })
-     .then(({ data }) => {
-       // Filtrar solo "En Curso" o "Terminada" y generar el campo "estado"
-       const filtered = data
-         .filter((r) => r.status === "En Curso" || r.status === "Terminada")
-         .map((r) => ({
-           ...r,
-           estado: r.asistio === 1 ? "Asistió" : "No asistió"
-         }));
-       setRows(filtered);
-     })
-     .catch(console.error);
+    // 2) Cargar reuniones con asistencia del usuario
+    axios
+      .get(`${API_URL}/api/reuniones/usuario/asistencia`, { withCredentials: true })
+      .then(({ data }) => {
+        // Filtrar solo reuniones que no están en estado "Programada"
+        const filtered = data
+          .filter((r) => r.status !== "Programada")
+          .map((r) => ({
+            ...r,
+            // Usar el estado de asistencia del backend
+            estado: r.estado_asistencia || 'falta_no_justificada'
+          }));
+        setRows(filtered);
+      })
+      .catch(console.error);
   }, []);
 
   // Cuando `openScanner` pasa a true, lanzamos el init un poco después
   useEffect(() => {
     let html5QrCode;
     if (openScanner) {
-      // esperamos un tick para que el <div id="qr-reader"> exista
       const timer = setTimeout(() => {
         html5QrCode = new Html5Qrcode(scannerId);
         html5QrCode
@@ -142,21 +156,34 @@ export default function Reuniones() {
                   {},
                   { withCredentials: true }
                 )
-                .then(() => {
-                  showSnackbar("Asistencia registrada", "success");
-                 return axios.get(`${API_URL}/api/reuniones/usuario/asistencia`, { withCredentials: true });
-
+                .then((response) => {
+                  // El backend ahora devuelve información sobre el estado registrado
+                  const { estado, puntaje, estadoReunion } = response.data;
+                  showSnackbar(
+                    `Asistencia registrada: ${getAsistenciaLabel(estado)} (${puntaje} puntos)`, 
+                    "success"
+                  );
+                  
+                  // Recargar las reuniones con asistencia actualizada
+                  return axios.get(`${API_URL}/api/reuniones/usuario/asistencia`, { withCredentials: true });
                 })
-                 .then(({ data }) => {
+                .then(({ data }) => {
                   const updated = data
-                    .filter((r) => r.status === "En Curso" || r.status === "Terminada")
+                    .filter((r) => r.status !== "Programada")
                     .map((r) => ({
                       ...r,
-                      estado: r.asistio === 1 ? "Asistió" : "No asistió"
+                      estado: r.estado_asistencia || 'falta_no_justificada'
                     }));
                   setRows(updated);
                 })
-                .catch(() => showSnackbar("Falló al registrar asistencia", "error"));
+                .catch((error) => {
+                  console.error('Error:', error);
+                  if (error.response?.data?.error) {
+                    showSnackbar(error.response.data.error, "error");
+                  } else {
+                    showSnackbar("Falló al registrar asistencia", "error");
+                  }
+                });
 
               setOpenScanner(false);
             },
@@ -181,64 +208,73 @@ export default function Reuniones() {
   const handleOpenScanner = () => setOpenScanner(true);
   const handleCloseScanner = () => setOpenScanner(false);
 
-
-  // Eventos para el calendario (mapeamos desde `rows`)
- 
-
   const calEvents = useMemo(() => {
-  return todasLasReuniones.map((r) => {
-    const start = moment(`${r.date} ${r.time}`, "YYYY-MM-DD HH:mm:ss").toDate();
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    return todasLasReuniones.map((r) => {
+      const start = moment(`${r.date} ${r.time}`, "YYYY-MM-DD HH:mm:ss").toDate();
+      const end = new Date(start.getTime() + 60 * 60 * 1000);
+      return {
+        id: r.id,
+        title: r.title,
+        start,
+        end,
+        status: r.status,
+      };
+    });
+  }, [todasLasReuniones]);
+
+  // Estilos para el calendario basados en los nuevos estados
+  const eventStyleGetter = (event) => {
+    let backgroundColor = "#1976d2"; // azul para "Programada"
+    
+    switch (event.status) {
+      case 'Programada':
+        backgroundColor = "#1976d2"; // azul
+        break;
+      case 'Registro_Abierto':
+        backgroundColor = "#4caf50"; // verde
+        break;
+      case 'Retardos_Permitidos':
+        backgroundColor = "#ff9800"; // naranja
+        break;
+      case 'Falta_No_Justificada':
+        backgroundColor = "#f44336"; // rojo
+        break;
+      case 'Terminada':
+        backgroundColor = "#9e9e9e"; // gris
+        break;
+      default:
+        backgroundColor = "#1976d2";
+    }
+
     return {
-      id: r.id,
-      title: r.title,
-      start,
-      end,
-       status: r.status,
+      style: {
+        backgroundColor,
+        color: "white",
+        borderRadius: "4px",
+        border: "none",
+      },
     };
-  });
-}, [todasLasReuniones]);
-
-// Devuelve estilos dinámicos según el status del evento
-const eventStyleGetter = (event) => {
-  let backgroundColor = "#1976d2"; // azul para "Programada"
-  if (event.status === "En Curso") backgroundColor = "#4caf50";   // verde
-  if (event.status === "Terminada") backgroundColor = "#f44336"; // rojo
-
-  return {
-    style: {
-      backgroundColor,
-      color: "white",
-      borderRadius: "4px",
-      border: "none",
-    },
   };
-};
 
-
-   // Al hacer clic en un evento, abrimos el diálogo de detalle
+  // Al hacer clic en un evento, abrimos el diálogo de detalle
   const handleCalSelect = (eventoCalendario) => {
-   const reunión = todasLasReuniones.find((r) => r.id === eventoCalendario.id);
-  if (reunión) {
-    // Para el estado "estado", si ya estaba en rows, mantenlo; si no, usa reunion.status
-    const tuvoAsistencia = rows.find((rr) => rr.id === reunión.id);
-    const estado = tuvoAsistencia
-      ? tuvoAsistencia.estado
-      : reunión.status === "En Curso"
-      ? "En Curso"
-      : reunión.status === "Terminada"
-      ? "Terminada"
-      : "Programada";
+    const reunión = todasLasReuniones.find((r) => r.id === eventoCalendario.id);
+    if (reunión) {
+      // Buscar el estado de asistencia del usuario para esta reunión
+      const tuvoAsistencia = rows.find((rr) => rr.id === reunión.id);
+      const estado = tuvoAsistencia?.estado || 'Sin registrar';
 
-    setCurrent({ ...reunión, estado });
-    setViewOpen(true);
-  }
+      setCurrent({ ...reunión, estado });
+      setViewOpen(true);
+    }
   };
-  // Diálogo de detalle (reutilizado)
+
+  // Diálogo de detalle
   const [viewOpen, setViewOpen] = useState(false);
   const [current, setCurrent] = useState(null);
   const closeView = () => setViewOpen(false);
-    // Helper: formatear fecha "YYYY-MM-DD" ➔ "31 de mayo de 2025"
+
+  // Helper: formatear fecha
   const formatFecha = (raw) => {
     if (!raw) return "";
     const d = raw instanceof Date ? raw : new Date(raw);
@@ -249,10 +285,9 @@ const eventStyleGetter = (event) => {
     });
   };
 
-  // Helper: formatear hora "HH:MM:SS" ➔ "HH:MM hr"
+  // Helper: formatear hora
   const formatHora = (raw) => {
     if (!raw) return "";
-    // Si es Date, lo pasamos a cadena "HH:MM"
     if (raw instanceof Date) {
       return (
         raw.toLocaleTimeString("es-ES", {
@@ -261,10 +296,8 @@ const eventStyleGetter = (event) => {
         }) + " hr"
       );
     }
-    // Si viene como string "HH:MM:SS"
     return `${String(raw).slice(0, 5)} hr`;
   };
-
 
   return (
     <Container maxWidth="md" sx={{ mt: 15, mb: 4 }}>
@@ -284,7 +317,9 @@ const eventStyleGetter = (event) => {
           }}
         />
       </Box>
-<Paper sx={{ mb: 4, p: 2 }}>
+
+      {/* Calendario */}
+      <Paper sx={{ mb: 4, p: 2 }}>
         <Calendar
           localizer={localizer}
           events={calEvents}
@@ -302,6 +337,7 @@ const eventStyleGetter = (event) => {
           onSelectEvent={handleCalSelect}
         />
       </Paper>
+
       {/* Botón Escáner QR */}
       <Box sx={{ textAlign: "center", mb: 4 }}>
         <Button
@@ -314,12 +350,12 @@ const eventStyleGetter = (event) => {
         </Button>
       </Box>
 
-         {/* Historial de Reuniones (con <Table> manual) */}
+      {/* Historial de Reuniones */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h6" sx={{ mb: 2, textAlign: "center" }}>
           Historial de Reuniones
         </Typography>
-        <Paper sx={{ width: "100%"  }}>
+        <Paper sx={{ width: "100%" }}>
           <TableContainer>
             <Table>
               <TableHead>
@@ -328,7 +364,8 @@ const eventStyleGetter = (event) => {
                   <TableCell>Descripción</TableCell>
                   <TableCell>Fecha</TableCell>
                   <TableCell>Hora</TableCell>
-                  <TableCell>Estado</TableCell>
+                  <TableCell>Estado Asistencia</TableCell>
+                  <TableCell>Puntaje</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -342,10 +379,17 @@ const eventStyleGetter = (event) => {
                       <TableCell>{formatHora(r.time)}</TableCell>
                       <TableCell>
                         <Chip
-                          label={r.estado}
+                          label={getAsistenciaLabel(r.estado)}
                           size="small"
-                          color={r.estado === "Asistió" ? "primary" : "warning"}
+                          color={getAsistenciaColor(r.estado)}
                           sx={{ color: "white" }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={`${r.puntaje || 0} pts`}
+                          size="small"
+                          variant="outlined"
                         />
                       </TableCell>
                     </TableRow>
@@ -354,7 +398,7 @@ const eventStyleGetter = (event) => {
             </Table>
           </TableContainer>
 
-          {/* Paginación manual (igual que en AdminReuniones) */}
+          {/* Paginación */}
           <TablePagination
             component="div"
             count={rows.length}
@@ -403,7 +447,8 @@ const eventStyleGetter = (event) => {
           <div id={scannerId} style={{ width: "100%" }} />
         </DialogContent>
       </Dialog>
-{/* Diálogo de detalle de reunión (clic sobre evento) */}
+
+      {/* Diálogo de detalle de reunión */}
       <Dialog open={viewOpen} onClose={closeView} fullWidth>
         <DialogTitle>Detalle de Reunión</DialogTitle>
         <DialogContent>
@@ -420,7 +465,16 @@ const eventStyleGetter = (event) => {
           <Typography variant="body2">
             Hora: {current?.time && `${current.time.slice(0, 5)} hr`}
           </Typography>
-          <Typography variant="body2">Estado: {current?.estado}</Typography>
+          <Typography variant="body2">
+            Estado: {current?.estado && (
+              <Chip 
+                label={getAsistenciaLabel(current.estado)} 
+                size="small" 
+                color={getAsistenciaColor(current.estado)}
+                sx={{ ml: 1 }}
+              />
+            )}
+          </Typography>
           <Typography variant="body2" sx={{ mt: 1 }}>
             {current?.description}
           </Typography>
@@ -431,16 +485,16 @@ const eventStyleGetter = (event) => {
           </Button>
         </DialogActions>
       </Dialog>
+
       {/* Snackbar */}
       <Snackbar
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
         open={snackbar.open}
-        autoHideDuration={3000}
+        autoHideDuration={5000}
         onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
       >
         <Alert severity={snackbar.severity} sx={{ width: "100%" }}>
           {snackbar.message}
-          
         </Alert>
       </Snackbar>
     </Container>

@@ -1,4 +1,4 @@
-//admin_reuniones.jsx
+//admin_reuniones.jsx - MODIFICADO
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import axios from "axios";
 import jsPDF from "jspdf";
@@ -46,6 +46,41 @@ import "moment/locale/es";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { API_URL } from "../../../../config/apiConfig";
 
+// Función para obtener el color del chip según el estado
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'Programada':
+      return 'info';
+    case 'Registro_Abierto':
+      return 'success';
+    case 'Retardos_Permitidos':
+      return 'warning';
+    case 'Falta_No_Justificada':
+      return 'error';
+    case 'Terminada':
+      return 'default';
+    default:
+      return 'default';
+  }
+};
+
+// Función para obtener el label amigable del estado
+const getStatusLabel = (status) => {
+  switch (status) {
+    case 'Programada':
+      return 'Programada';
+    case 'Registro_Abierto':
+      return 'Registro Abierto';
+    case 'Retardos_Permitidos':
+      return 'Retardos Permitidos';
+    case 'Falta_No_Justificada':
+      return 'Registro Cerrado';
+    case 'Terminada':
+      return 'Terminada';
+    default:
+      return status;
+  }
+};
 
 export default function AdminReuniones() {
   const [search, setSearch] = useState("");
@@ -54,21 +89,18 @@ export default function AdminReuniones() {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [meetings, setMeetings] = useState([]);
   const navigate = useNavigate();
- const localizer = momentLocalizer(moment);
- moment.locale("es");
-const [calView, setCalView] = useState(Views.MONTH);
-const [calDate, setCalDate] = useState(new Date());
-const [selectEventOpen, setSelectEventOpen] = useState(false);
-const [selectedEvent, setSelectedEvent] = useState(null);
+  const localizer = momentLocalizer(moment);
+  moment.locale("es");
+  const [calView, setCalView] = useState(Views.MONTH);
+  const [calDate, setCalDate] = useState(new Date());
 
+  const handleCalSelect = (eventoCalendario) => {
+    const reunion = meetings.find((m) => m.id === eventoCalendario.id);
+    if (reunion) {
+      openView(reunion);
+    }
+  };
 
-const handleCalSelect = (eventoCalendario) => {
-  // Busca la reunión completa en tu array "meetings" usando el id
-  const reunion = meetings.find((m) => m.id === eventoCalendario.id);
-  if (reunion) {
-    openView(reunion);
-  }
-};
   useEffect(() => {
     axios
       .get(`${API_URL}/api/reuniones`)
@@ -146,6 +178,7 @@ const handleCalSelect = (eventoCalendario) => {
     }
     setFormOpen(true);
   };
+  
   const closeForm = () => setFormOpen(false);
   const handleFormChange = (e) => {
     const { name, value } = e.target;
@@ -159,26 +192,9 @@ const handleCalSelect = (eventoCalendario) => {
         `${API_URL}/api/reuniones`,
         payload
       );
-      const nueva = resp.data; // { id, title, date:"2025-06-01T06:00:00.000Z", time:"15:30:00", ... }
-
-      // 1) Sacar solo "YYYY-MM-DD" de la date:
-      const fechaSolo = nueva.date.slice(0, 10); // -> "2025-06-01"
-
-      // 2) Construir bien el Date de inicio:
-      const start = new Date(`${fechaSolo}T${nueva.time}`); // -> válida
-      const end = new Date(start.getTime() + 60 * 60 * 1000);
-
-      // 3) Calcular status
-      const now = new Date();
-      let status;
-      if (now < start) status = "Programada";
-      else if (now >= start && now < end) status = "En Curso";
-      else status = "Terminada";
-
-      // 4) Añadir el status al objeto antes de meterlo en state
-      const nuevaConStatus = { ...nueva, status };
-
-      setMeetings((prev) => [nuevaConStatus, ...prev]);
+      
+      const nuevaReunion = resp.data;
+      setMeetings((prev) => [nuevaReunion, ...prev]);
       showSnackbar("Reunión creada correctamente");
       closeForm();
       setPage(0);
@@ -187,7 +203,7 @@ const handleCalSelect = (eventoCalendario) => {
       showSnackbar("Error al crear reunión", "error");
     }
   };
-  // 2) Nuevo handle para actualizar
+
   const handleUpdate = async () => {
     try {
       const payload = { ...formData };
@@ -195,7 +211,6 @@ const handleCalSelect = (eventoCalendario) => {
         `${API_URL}/api/reuniones/${editingId}`,
         payload
       );
-      // el backend ya retorna el status calculado
       setMeetings((prev) =>
         prev.map((m) => (m.id === editingId ? resp.data : m))
       );
@@ -208,20 +223,19 @@ const handleCalSelect = (eventoCalendario) => {
     }
   };
 
- 
   const openView = (m) => {
     setCurrent(m);
     setViewOpen(true);
   };
+  
   const closeView = () => setViewOpen(false);
   const closeQr = () => setQrOpen(false);
-  // Descarga el QR como PDF a alta resolución
+
   const downloadPdf = async () => {
     if (!current) return showSnackbar("No hay reunión seleccionada", "error");
     const svgEl = qrRef.current?.querySelector("svg");
     if (!svgEl) return showSnackbar("SVG no disponible", "error");
 
-    // Clonar SVG off-screen
     const wrapper = document.createElement("div");
     wrapper.style.position = "fixed";
     wrapper.style.top = "-10000px";
@@ -229,7 +243,6 @@ const handleCalSelect = (eventoCalendario) => {
     wrapper.appendChild(svgEl.cloneNode(true));
     document.body.appendChild(wrapper);
 
-    // Capturar en alta resolución
     const canvas = await html2canvas(wrapper, {
       backgroundColor: null,
       scale: 3,
@@ -239,10 +252,7 @@ const handleCalSelect = (eventoCalendario) => {
     const imgData = canvas.toDataURL("image/png");
     const doc = new jsPDF();
     const pdfW = doc.internal.pageSize.getWidth();
-    const pdfH = (canvas.height * pdfW) / canvas.width;
-    
 
-    // Ajustar tamaño (50% ancho) y centrar en la página
     const targetWidth = pdfW * 0.5;
     const targetHeight = (canvas.height * targetWidth) / canvas.width;
     const x = (pdfW - targetWidth) / 2;
@@ -251,27 +261,28 @@ const handleCalSelect = (eventoCalendario) => {
     doc.addImage(imgData, "PNG", x, y, targetWidth, targetHeight);
     doc.save(`qr_reunion_${current.id}.pdf`);
   };
-const messagesEs = {
-  date: "Fecha",
-  time: "Hora",
-  event: "Evento",
-  allDay: "Todo el día",
-  week: "Semana",
-  work_week: "Semana laboral",
-  day: "Día",
-  month: "Mes",
-  previous: "Anterior",
-  next: "Siguiente",
-  yesterday: "Ayer",
-  tomorrow: "Mañana",
-  today: "Hoy",
-  agenda: "Agenda",
-  noEventsInRange: "No hay eventos en este período",
-  showMore: (total) => `+${total} más`
-};
+
+  const messagesEs = {
+    date: "Fecha",
+    time: "Hora",
+    event: "Evento",
+    allDay: "Todo el día",
+    week: "Semana",
+    work_week: "Semana laboral",
+    day: "Día",
+    month: "Mes",
+    previous: "Anterior",
+    next: "Siguiente",
+    yesterday: "Ayer",
+    tomorrow: "Mañana",
+    today: "Hoy",
+    agenda: "Agenda",
+    noEventsInRange: "No hay eventos en este período",
+    showMore: (total) => `+${total} más`
+  };
+
   const openQr = async (meeting) => {
     try {
-      // traemos la reunión completa (con el campo status calculado en el servidor)
       const { data } = await axios.get(
         `${API_URL}/api/reuniones/${meeting.id}`
       );
@@ -284,56 +295,68 @@ const messagesEs = {
   };
 
   const handleDelete = async (id) => {
-  try {
-    // Llama al endpoint DELETE
-    await axios.delete(`${API_URL}/api/reuniones/${id}`);
-    // Solo si el borrado fue exitoso, actualizamos el state
-    setMeetings((prev) => prev.filter((m) => m.id !== id));
-    showSnackbar("Reunión eliminada correctamente", "info");
-  } catch (err) {
-    console.error("Error al eliminar reunión:", err);
-    showSnackbar("No se pudo eliminar la reunión", "error");
-  }
-};
+    try {
+      await axios.delete(`${API_URL}/api/reuniones/${id}`);
+      setMeetings((prev) => prev.filter((m) => m.id !== id));
+      showSnackbar("Reunión eliminada correctamente", "info");
+    } catch (err) {
+      console.error("Error al eliminar reunión:", err);
+      showSnackbar("No se pudo eliminar la reunión", "error");
+    }
+  };
 
+  const calEvents = useMemo(() => {
+    return meetings.map((m) => {
+      const start = moment(`${m.date} ${m.time}`, "YYYY-MM-DD HH:mm:ss").toDate();
+      const end = new Date(start.getTime() + 60 * 60 * 1000);
 
+      return {
+        id: m.id,
+        title: m.title,
+        start,
+        end,
+        status: m.status, 
+      };
+    });
+  }, [meetings]);
 
- const calEvents = useMemo(() => {
-  return meetings.map((m) => {
-    // Parseamos usando Moment para respetar el huso local:
-    const start = moment(`${m.date} ${m.time}`, "YYYY-MM-DD HH:mm:ss").toDate();
-    // Duración fija de 1 hora (ajústala si quieres otro intervalo):
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
+  // Función actualizada para manejar los nuevos estados
+  const eventStyleGetter = (event) => {
+    let backgroundColor = "#1976d2"; // azul por defecto
+    
+    switch (event.status) {
+      case 'Programada':
+        backgroundColor = "#1976d2"; // azul
+        break;
+      case 'Registro_Abierto':
+        backgroundColor = "#4caf50"; // verde
+        break;
+      case 'Retardos_Permitidos':
+        backgroundColor = "#ff9800"; // naranja
+        break;
+      case 'Falta_No_Justificada':
+        backgroundColor = "#f44336"; // rojo
+        break;
+      case 'Terminada':
+        backgroundColor = "#9e9e9e"; // gris
+        break;
+      default:
+        backgroundColor = "#1976d2";
+    }
 
     return {
-      id: m.id,
-      title: m.title,
-      start,
-      end,
-      status: m.status, 
+      style: {
+        backgroundColor,
+        color: "white",
+        borderRadius: "4px",
+        border: "none",
+      },
     };
-  });
-}, [meetings]);
-// Devuelve estilos dinámicos según el status del evento
-
-const eventStyleGetter = (event) => {
-  let backgroundColor = "#1976d2"; // azul por defecto ("Programada")
-  if (event.status === "En Curso") backgroundColor = "#4caf50";     // verde
-  if (event.status === "Terminada") backgroundColor = "#f44336";   // rojo
-
-  return {
-    style: {
-      backgroundColor,
-      color: "white",
-      borderRadius: "4px",
-      border: "none",
-    },
   };
-};
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-       <Paper
+      <Paper
         sx={{
           mb: 2,
           flexWrap: "wrap",
@@ -341,39 +364,31 @@ const eventStyleGetter = (event) => {
           "&:hover": { boxShadow: 8 },
         }}
       >
-       <Box sx={{ mb: 2 }}>
-  <Calendar
-      localizer={localizer}
-      events={calEvents}
-      startAccessor="start"
-      endAccessor="end"
+        <Box sx={{ mb: 2 }}>
+          <Calendar
+            localizer={localizer}
+            events={calEvents}
+            startAccessor="start"
+            endAccessor="end"
+            view={calView}
+            onView={(newView) => setCalView(newView)}
+            date={calDate}
+            onNavigate={(newDate) => setCalDate(newDate)}
+            views={{
+              month: true,
+              week: true,
+              day: true,
+              agenda: true
+            }}
+            toolbar={true}
+            messages={messagesEs}
+            style={{ height: 500 }}
+            eventPropGetter={eventStyleGetter}
+            onSelectEvent={handleCalSelect}
+          />
+        </Box>
+      </Paper>
 
-      /* 1) control de vista actual (mes/semana/día/agenda) */
-      view={calView}
-      onView={(newView) => setCalView(newView)}
-
-      /* 2) control de fecha visible */
-      date={calDate}
-      onNavigate={(newDate) => setCalDate(newDate)}
-
-      /* 3) decirle explícitamente qué vistas permitimos */
-      views={{
-        month: true,
-        week: true,
-        day: true,
-        agenda: true
-      }}
-
-      /* 4) mostramos la toolbar para cambiar entre vistas */
-      toolbar={true}
-messages={messagesEs}
-      style={{ height: 500 }}
-      eventPropGetter={eventStyleGetter}
-       onSelectEvent={handleCalSelect}
-       
-    />
- </Box>
- </Paper>
       {/* Barra de acciones */}
       <Paper
         sx={{
@@ -409,20 +424,27 @@ messages={messagesEs}
           >
             <MenuItem value="Todos">Todos</MenuItem>
             <MenuItem value="Programada">Programadas</MenuItem>
-            <MenuItem value="En Curso">En Curso</MenuItem>
+            <MenuItem value="Registro_Abierto">Registro Abierto</MenuItem>
+            <MenuItem value="Retardos_Permitidos">Retardos Permitidos</MenuItem>
+            <MenuItem value="Falta_No_Justificada">Registro Cerrado</MenuItem>
             <MenuItem value="Terminada">Terminadas</MenuItem>
             <MenuItem value="Hoy">Hoy</MenuItem>
           </Select>
         </FormControl>
+         {/*  NUEVO BOTÓN - Estadísticas Anuales */}
+  <Button 
+    variant="outlined" 
+    color="secondary"
+    onClick={() => navigate('/estadisticas_anual')}
+    sx={{ py: 0.8 }}
+    startIcon={<AssessmentIcon />}
+  >
+    Estadísticas Anuales
+  </Button>
         <Button variant="contained" onClick={() => openForm()} sx={{ py: 0.8 }}>
           Crear Nueva Reunión
         </Button>
       </Paper>
- {/* ------ Aquí insertamos el calendario ------ */}
-    
-
-
-  
 
       {/* Tabla de reuniones */}
       <Paper
@@ -436,7 +458,6 @@ messages={messagesEs}
         <TableContainer>
           <Table>
             <TableHead>
-              {/* Cabecera gris */}
               <TableRow sx={{ backgroundColor: " rgb(2 135 209)" }}>
                 <TableCell>Título</TableCell>
                 <TableCell>Fecha</TableCell>
@@ -467,22 +488,15 @@ messages={messagesEs}
                         day: "numeric",
                         month: "long",
                         year: "numeric",
-                      })}{" "}
+                      })}
                     </TableCell>
                     <TableCell>{`${m.time.slice(0, 5)} hr`}</TableCell>
-
                     <TableCell>{m.type}</TableCell>
                     <TableCell>
                       <Chip
-                        label={m.status}
+                        label={getStatusLabel(m.status)}
                         size="small"
-                        color={
-                          m.status === "Terminada"
-                            ? "error"
-                            : m.status === "En Curso"
-                            ? "success"
-                            : "info"
-                        }
+                        color={getStatusColor(m.status)}
                       />
                     </TableCell>
                     <TableCell align="center">
@@ -515,7 +529,9 @@ messages={messagesEs}
                       >
                         <QrCodeIcon />
                       </IconButton>
-                      {(m.status === "En Curso" ||
+                      {(m.status === "Registro_Abierto" ||
+                        m.status === "Retardos_Permitidos" ||
+                        m.status === "Falta_No_Justificada" ||
                         m.status === "Terminada") && (
                         <IconButton
                           color="secondary"
@@ -559,10 +575,16 @@ messages={messagesEs}
               })}
           </Typography>
           <Typography variant="body2">
-            {" "}
             Hora: {current?.time && `${current.time.slice(0, 5)} hr`}
           </Typography>
           <Typography variant="body2">Tipo: {current?.type}</Typography>
+          <Typography variant="body2">
+            Estado: <Chip 
+              label={getStatusLabel(current?.status)} 
+              size="small" 
+              color={getStatusColor(current?.status)} 
+            />
+          </Typography>
           <Typography variant="body2">
             Ubicación: {current?.location}
           </Typography>
@@ -688,7 +710,7 @@ messages={messagesEs}
         <DialogActions>
           <Button onClick={downloadPdf} size="small">
             Descargar PDF
-          </Button>{" "}
+          </Button>
           <Button onClick={closeQr} size="small">
             Cerrar
           </Button>

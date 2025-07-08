@@ -235,42 +235,48 @@ const PanelAdmin = () => {
   ]);
 
   // Calcular progreso de actividades basado en datos reales
-  const calculateActivities = () => {
-    if (loading) return [];
+ const calculateActivities = () => {
+  if (loading) return [];
 
-    return [
-      { 
-        name: 'Reuniones Ordinarias', 
-        completed: reuniones.filter(r => r.status === 'Terminada').length, 
-        total: reuniones.length, 
-        color: '#2196f3' 
-      },
-      { 
-        name: 'Encuestas Sindicales', 
-        completed: encuestas.filter(e => e.estado === 'Cerrado').length, 
-        total: encuestas.length, 
-        color: '#4caf50' 
-      },
-      { 
-        name: 'Votaciones Activas', 
-        completed: encuestas.filter(e => e.type === 'Votación' && e.estado === 'Activo').length, 
-        total: encuestas.filter(e => e.type === 'Votación').length, 
-        color: '#ff9800' 
-      },
-      { 
-        name: 'Rifas Benéficas', 
-        completed: rifas.length, 
-        total: rifas.length + 2, 
-        color: '#9c27b0' 
-      },
-      { 
-        name: 'Preguntas Respondidas', 
-        completed: preguntas.filter(p => p.estado === 'respondido').length, 
-        total: preguntas.length, 
-        color: '#f44336' 
-      }
-    ];
-  };
+  // ✅ Validar que todos los arrays sean arrays antes de usar .filter()
+  const reunionesArray = Array.isArray(reuniones) ? reuniones : [];
+  const encuestasArray = Array.isArray(encuestas) ? encuestas : [];
+  const preguntasArray = Array.isArray(preguntas) ? preguntas : [];
+  const rifasArray = Array.isArray(rifas) ? rifas : [];
+
+  return [
+    { 
+      name: 'Reuniones Ordinarias', 
+      completed: reunionesArray.filter(r => r.status === 'Terminada').length, 
+      total: reunionesArray.length, 
+      color: '#2196f3' 
+    },
+    { 
+      name: 'Encuestas Sindicales', 
+      completed: encuestasArray.filter(e => e.estado === 'Cerrado').length, 
+      total: encuestasArray.length, 
+      color: '#4caf50' 
+    },
+    { 
+      name: 'Votaciones Activas', 
+      completed: encuestasArray.filter(e => e.type === 'Votación' && e.estado === 'Activo').length, 
+      total: encuestasArray.filter(e => e.type === 'Votación').length, 
+      color: '#ff9800' 
+    },
+    { 
+      name: 'Rifas Benéficas', 
+      completed: rifasArray.length, 
+      total: rifasArray.length + 2, 
+      color: '#9c27b0' 
+    },
+    { 
+      name: 'Preguntas Respondidas', 
+      completed: preguntasArray.filter(p => p.estado === 'respondido').length, 
+      total: preguntasArray.length, 
+      color: '#f44336' 
+    }
+  ];
+};
 
   const StatCard = ({ title, value, change, period, icon, color }) => (
     <Card sx={{ height: '100%', position: 'relative', overflow: 'hidden' }}>

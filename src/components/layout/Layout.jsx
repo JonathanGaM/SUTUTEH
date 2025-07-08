@@ -154,7 +154,7 @@ function Layout() {
     "/admin_preguntas",
     "/admin_encuestas",
     "/estadisticas_encuestas_votos",
-    "/estadisticas_encuestas",
+    "/estadisticas_anual",
     "/admin_votaciones",
     "/admin_reuniones",
     "/estadistica_reuniones",

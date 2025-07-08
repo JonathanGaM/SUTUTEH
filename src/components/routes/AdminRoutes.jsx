@@ -11,7 +11,7 @@ import Documentos from '../pages/admin/Contenido/admin_Documentos';
 import Noticias from '../pages/admin/Contenido/admin_Noticias';
 import Preguntas from '../pages/admin/Contenido/admin_Preguntas';
 import Encuestas from '../pages/admin/EncuestasyVotaciones/admin_encuestas';
-import EstadisticasEnc from '../pages/admin/EncuestasyVotaciones/Estadisticas';
+import Estadisticas from '../pages/admin/EncuestasyVotaciones/Estadisticas';
 import Votaciones from '../pages/admin/EncuestasyVotaciones/admin_votaciones';
 import Reuniones from '../pages/admin/EncuestasyVotaciones/admin_reuniones';
 import NotificacionesAutomatica from '../pages/admin/Comunicaciones/NotificacionesAutomatica';
@@ -50,7 +50,7 @@ const AdminRoutes = () => {
         {/* === ENCUESTAS Y VOTACIONES === */}
         <Route path="/admin_encuestas" element={<Encuestas />} />
         <Route path="/estadisticas_encuestas_votos/:id" element={<EstadisticasEncuestasVotos />} />
-        <Route path="/estadisticas_encuestas" element={<EstadisticasEnc />} />
+        <Route path="/estadisticas_anual" element={<Estadisticas />} />
         <Route path="/admin_votaciones" element={<Votaciones />} />
         <Route path="/estadistica_reuniones/:id" element={<EstadisticaReuniones />} />
         <Route path="/admin_reuniones" element={<Reuniones/>}/>
