@@ -1,4 +1,4 @@
-// src/pages/agremiado/Contacto.jsx
+// src/pages/agremiado/ContactoAgremiado.jsx
 import React, { useState, useEffect } from "react";
 import {
   Box,
@@ -22,8 +22,6 @@ const Contacto = () => {
   const [success, setSuccess] = useState(false);
 
   const [chatMessages, setChatMessages] = useState([]);
-
- 
 
   // Estilos para efecto en foco (verde claro)
   const inputStyles = {
@@ -79,33 +77,39 @@ const Contacto = () => {
       setSuccess(false);
     }
   };
-useEffect(() => {
-  const fetchMyQAs = async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/preguntas/usuario`, {
-        credentials: "include"
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      // Transformamos al formato de chat: preguntas y luego respuestas
-       const msgs = data
-        .slice()            // no mutamos el original
-        .reverse()          // preguntas más nuevas arriba
-        .flatMap(item => [
-          { sender: "user",   text: item.question },
-          ...item.responses.map(r => ({ sender: "system", text: r }))
-        ]);
-      setChatMessages(msgs);
-      
-    } catch {
-      console.error("No pude cargar tus preguntas");
-    }
-  };
 
-  fetchMyQAs();
-  const id = setInterval(fetchMyQAs, 15000);
-  return () => clearInterval(id);
-}, []);
+  useEffect(() => {
+    const fetchMyQAs = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/preguntas/usuario`, {
+          credentials: "include"
+        });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        
+        // Corregir el orden: mantener el orden cronológico ASC que viene del backend
+        // y procesar cada conversación en orden
+        const msgs = data.flatMap(item => {
+          // Primero la pregunta
+          const messages = [{ sender: "user", text: item.question }];
+          // Luego todas las respuestas en orden
+          item.responses.forEach(response => {
+            messages.push({ sender: "system", text: response });
+          });
+          return messages;
+        });
+        
+        setChatMessages(msgs);
+        
+      } catch {
+        console.error("No pude cargar tus preguntas");
+      }
+    };
+
+    fetchMyQAs();
+    const id = setInterval(fetchMyQAs, 15000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <Box
@@ -220,7 +224,6 @@ useEffect(() => {
             </Typography>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
               {chatMessages.map((msg, index) => (
-                
                 <Box
                   key={index}
                   sx={{

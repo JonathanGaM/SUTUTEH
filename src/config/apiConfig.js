@@ -35,7 +35,7 @@ export const apiRequest = async (endpoint, options = {}) => {
     const response = await fetch(url, defaultOptions);
     return response;
   } catch (error) {
-    console.error(`❌ Error en request a ${url}:`, error);
+  //  console.error(`❌ Error en request a ${url}:`, error);
     throw error;
   }
 };
@@ -49,11 +49,11 @@ export const configureAxios = (axios) => {
   if (process.env.NODE_ENV === 'development') {
     axios.interceptors.request.use(
       (config) => {
-        console.log(`🔄 API Request: ${config.method?.toUpperCase()} ${config.url}`);
+    //    console.log(`🔄 API Request: ${config.method?.toUpperCase()} ${config.url}`);
         return config;
       },
       (error) => {
-        console.error('❌ Request Error:', error);
+    //    console.error('❌ Request Error:', error);
         return Promise.reject(error);
       }
     );
@@ -75,6 +75,6 @@ export const api = {
 };
 
 // Log de configuración actual
-console.log(`🌐 API URL configurada: ${API_URL}`);
+//console.log(`🌐 API URL configurada: ${API_URL}`);
 
 export default { API_URL, apiRequest, configureAxios };

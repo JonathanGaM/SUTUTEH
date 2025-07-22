@@ -1,8 +1,18 @@
 // GestionUsuarios.jsx
-import React, { useState } from "react";
-import { DataGrid } from "@mui/x-data-grid";
+import React, { useState, useEffect } from "react";
 import {
+  Box,
+  Container,
   Paper,
+  Tabs,
+  Tab,
+  TableContainer,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  TablePagination,
   Button,
   IconButton,
   Dialog,
@@ -11,165 +21,651 @@ import {
   DialogActions,
   TextField,
   MenuItem,
-  Typography
+  Typography,
+  Tooltip,
+  InputAdornment,
+  FormControl,
+  Select,
+  Chip,
+  Alert,
+  CircularProgress,
+  LinearProgress,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Divider,
+  Card,
+  CardContent,
+  Grid
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
+import {
+  Delete as DeleteIcon,
+  Search as SearchIcon,
+  Person as PersonIcon,
+  PersonAdd as PersonAddIcon,
+  Upload as UploadIcon,
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  Warning as WarningIcon,
+  Refresh as RefreshIcon
+} from "@mui/icons-material";
+import { useNavigate } from 'react-router-dom';
+
+import { api } from "../../../../config/apiConfig";
+
+function TabPanel({ children, value, index }) {
+  return (
+    <div role="tabpanel" hidden={value !== index}>
+      {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
+    </div>
+  );
+}
 
 const GestionUsuarios = () => {
-  // Columnas para la tabla de usuarios registrados (la existente)
-  const registeredColumns = [
-    { field: "id", headerName: "ID", width: 70 },
-    { field: "firstName", headerName: "Nombre", width: 130 },
-    { field: "lastNameP", headerName: "Apellido Paterno", width: 150 },
-    { field: "lastNameM", headerName: "Apellido Materno", width: 150 },
-    { field: "email", headerName: "Correo Electrónico", width: 200, editable: true },
-    { field: "phone", headerName: "Número de Teléfono", width: 150, editable: true },
-    { field: "gender", headerName: "Género", width: 120 },
-    { field: "curp", headerName: "CURP", width: 200 },
-    { field: "program", headerName: "Programa Educativo", width: 180, editable: true },
-    { field: "position", headerName: "Puesto", width: 150, editable: true },
-    { field: "university", headerName: "Universidad de Procedencia", width: 220, editable: true },
-    { field: "workerNumber", headerName: "Número de Trabajador", width: 180, editable: true },
-    { field: "unionNumber", headerName: "Número Sindicalizado", width: 200, editable: true },
-    { field: "educationLevel", headerName: "Nivel Educativo", width: 180 },
-    { field: "unionRole", headerName: "Rol en el Sindicato", width: 200 },
-    {
-      field: "operation",
-      headerName: "Operación",
-      width: 200,
-      renderCell: (params) => (
-        <>
-          <Button variant="contained" color="warning" size="small" sx={{ mr: 1 }}>
-            Bloquear
-          </Button>
-          <IconButton color="error" size="small">
-            <DeleteIcon />
-          </IconButton>
-        </>
-      ),
-    },
-  ];
+  const [tabValue, setTabValue] = useState(0);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const navigate = useNavigate();
 
-  // Datos de ejemplo para usuarios registrados
-  const initialRegisteredRows = [
-    {
-      id: 1,
-      firstName: "Juan",
-      lastNameP: "Pérez",
-      lastNameM: "Gómez",
-      email: "juan@example.com",
-      phone: "5512345678",
-      gender: "Masculino",
-      curp: "JUAN123456HDFABC01",
-      program: "Ingeniería",
-      position: "Profesor",
-      university: "UNAM",
-      workerNumber: "12345",  
-      unionNumber: "56789",
-      educationLevel: "Maestría",
-      unionRole: "Agremiado",
-    },
-    {
-      id: 2,
-      firstName: "María",
-      lastNameP: "López",
-      lastNameM: "Hernández",
-      email: "maria@example.com",
-      phone: "5523456789",
-      gender: "Femenino",
-      curp: "MARIA123456MDFXYZ02",
-      program: "Derecho",
-      position: "Administrativo",
-      university: "UAM",
-      workerNumber: "67890",
-      unionNumber: "11223",
-      educationLevel: "Licenciatura",
-      unionRole: "Tesorera",
-    },
-  ];
+  
 
-  // Columnas para la nueva tabla de usuarios sin registrarse
-  const unregisteredColumns = [
-    { field: "id", headerName: "Número de Sindicalizado", width: 200 },
-    { field: "email", headerName: "Correo", width: 250 },
-    { field: "birthDate", headerName: "Fecha de Nacimiento", width: 150 },
-  ];
+  // Estados de búsqueda y filtros
+  const [searchName, setSearchName] = useState("");
+  const [filterRole, setFilterRole] = useState("Todos");
 
-  // Datos de ejemplo (inicialmente vacíos) para usuarios sin registrarse
-  const [unregisteredRows, setUnregisteredRows] = useState([]);
+  // Estados de datos
+  const [unregisteredUsers, setUnregisteredUsers] = useState([]);
+  const [registeredUsers, setRegisteredUsers] = useState([]);
+  const [estadisticas, setEstadisticas] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
 
-  // Estado para los usuarios registrados
-  const [registeredRows, setRegisteredRows] = useState(initialRegisteredRows);
-
-  // Estados para el diálogo del formulario de agregar usuario
+  // Estados para el diálogo
   const [openDialog, setOpenDialog] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     birthDate: "",
     role: "agremiado",
+    excelFile: null,
   });
 
-  // Abre el diálogo
-  const handleOpenDialog = () => {
-    setOpenDialog(true);
+  // Estados para alerts y feedback
+  const [alert, setAlert] = useState({ show: false, type: 'info', message: '' });
+  const [uploadProgress, setUploadProgress] = useState(false);
+  const [uploadResults, setUploadResults] = useState(null);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+
+  // Estados para confirmación de eliminación
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState({ id: null, isRegistered: false, name: "" });
+
+  // Opciones para filtros
+  const roleOptions = ["Todos", "Agremiado", "Admin"];
+
+  // Función para navegar al perfil del usuario:
+const handleViewProfile = (userId) => {
+  navigate(`/usuario/${userId}`);
+};
+
+  // Función para mostrar alerts
+  const showAlert = (type, message) => {
+    setAlert({ show: true, type, message });
+    setTimeout(() => setAlert({ show: false, type: 'info', message: '' }), 5000);
   };
 
-  // Cierra el diálogo y resetea el formulario
+  // Cargar datos iniciales
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoadingData(true);
+    try {
+      await Promise.all([
+        loadUnregisteredUsers(),
+        loadRegisteredUsers(),
+        loadEstadisticas()
+      ]);
+    } catch (error) {
+      console.error('Error cargando datos:', error);
+      showAlert('error', 'Error al cargar los datos');
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  // Cargar usuarios preregistrados
+  const loadUnregisteredUsers = async () => {
+    try {
+      const response = await api.get('/api/usuarios/preregistrados');
+      const data = await response.json();
+      
+      if (data.success) {
+        setUnregisteredUsers(data.usuarios);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Error cargando usuarios preregistrados:', error);
+      showAlert('error', 'Error al cargar usuarios preregistrados');
+    }
+  };
+
+  // Cargar usuarios registrados
+  const loadRegisteredUsers = async () => {
+    try {
+      const response = await api.get('/api/usuarios/registrados');
+      const data = await response.json();
+      
+      if (data.success) {
+        setRegisteredUsers(data.usuarios);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Error cargando usuarios registrados:', error);
+      showAlert('error', 'Error al cargar usuarios registrados');
+    }
+  };
+
+  // Cargar estadísticas
+  const loadEstadisticas = async () => {
+    try {
+      const response = await api.get('/api/usuarios/estadisticas');
+      const data = await response.json();
+      
+      if (data.success) {
+        setEstadisticas(data.estadisticas);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Error cargando estadísticas:', error);
+    }
+  };
+
+  // Handlers para tabs y paginación
+  const handleChangeTab = (_, newValue) => {
+    setTabValue(newValue);
+    setPage(0);
+  };
+  const handleChangePage = (_, newPage) => setPage(newPage);
+  const handleChangeRowsPerPage = (e) => {
+    setRowsPerPage(+e.target.value);
+    setPage(0);
+  };
+
+  // Filtrado de datos
+  const filteredRegistered = registeredUsers
+    .filter(row => {
+      const fullName = `${row.nombre} ${row.apellido_paterno} ${row.apellido_materno}`.toLowerCase();
+      return fullName.includes(searchName.toLowerCase());
+    })
+    .filter(row => filterRole === "Todos" || row.rol_sindicato === filterRole);
+
+  const filteredUnregistered = unregisteredUsers
+    .filter(row => row.correo_electronico.toLowerCase().includes(searchName.toLowerCase()));
+
+  // Handlers del diálogo
+  const handleOpenDialog = () => setOpenDialog(true);
   const handleCloseDialog = () => {
     setOpenDialog(false);
-    setFormData({ email: "", birthDate: "", role: "agremiado" });
+    setFormData({ email: "", birthDate: "", role: "agremiado", excelFile: null });
   };
 
-  // Envía el formulario y agrega el nuevo usuario a la tabla de usuarios sin registrarse
-  const handleFormSubmit = (e) => {
+  // Agregar usuario individual
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
-    // Genera un id (aquí se usa el tamaño actual + 1)
-    const newId =
-      unregisteredRows.length > 0
-        ? Math.max(...unregisteredRows.map((row) => row.id)) + 1
-        : 1;
-    const newRow = {
-      id: newId,
-      email: formData.email,
-      birthDate: formData.birthDate,
-      role: formData.role, // Se almacena aunque no se muestre en la tabla
-    };
-    setUnregisteredRows([...unregisteredRows, newRow]);
-    handleCloseDialog();
+    setLoading(true);
+
+    try {
+      // Si hay archivo Excel, procesar archivo
+      if (formData.excelFile) {
+        await handleExcelUpload();
+      } else {
+        // Agregar usuario individual
+        const response = await api.post('/api/usuarios/agregar-individual', {
+          correo_electronico: formData.email,
+          fecha_nacimiento: formData.birthDate,
+          rol: formData.role
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          showAlert('success', data.mensaje);
+          await loadUnregisteredUsers();
+          await loadEstadisticas();
+          handleCloseDialog();
+        } else {
+          throw new Error(data.error);
+        }
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      showAlert('error', error.message || 'Error al agregar usuario');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Procesar archivo Excel
+  const handleExcelUpload = async () => {
+    if (!formData.excelFile) {
+      showAlert('error', 'Debe seleccionar un archivo Excel');
+      return;
+    }
+
+    setUploadProgress(true);
+    
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('excelFile', formData.excelFile);
+
+      const response = await api.post('/api/usuarios/procesar-excel', formDataUpload);
+      const data = await response.json();
+
+      if (data.success) {
+        setUploadResults(data);
+        setShowUploadDialog(true);
+        await loadUnregisteredUsers();
+        await loadEstadisticas();
+        handleCloseDialog();
+        showAlert('success', `Archivo procesado: ${data.resumen.exitosos} usuarios agregados`);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error('Error subiendo archivo:', error);
+      showAlert('error', error.message || 'Error al procesar archivo Excel');
+    } finally {
+      setUploadProgress(false);
+    }
+  };
+
+  // Eliminar usuario
+  const handleDeleteClick = (id, isRegistered) => {
+    let userName = "";
+    if (isRegistered) {
+      const user = registeredUsers.find(row => row.id === id);
+      userName = `${user.nombre} ${user.apellido_paterno} ${user.apellido_materno}`;
+    } else {
+      const user = unregisteredUsers.find(row => row.id === id);
+      userName = user.correo_electronico;
+    }
+    setUserToDelete({ id, isRegistered, name: userName });
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+  try {
+    setLoading(true);
+    
+    const response = await api.delete(`/api/usuarios/${userToDelete.id}`);
+    const data = await response.json();
+
+    if (data.success) {
+      showAlert('success', data.mensaje);
+      
+      // Recargar datos según el tipo de usuario eliminado
+      if (userToDelete.isRegistered) {
+        await loadRegisteredUsers();
+      } else {
+        await loadUnregisteredUsers();
+      }
+      
+      await loadEstadisticas();
+    } else {
+      throw new Error(data.error);
+    }
+  } catch (error) {
+    console.error('Error eliminando usuario:', error);
+    showAlert('error', error.message || 'Error al eliminar usuario');
+  } finally {
+    setLoading(false);
+    setDeleteDialogOpen(false);
+    setUserToDelete({ id: null, isRegistered: false, name: "" });
+  }
+};
+
+
+  if (loadingData) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4, textAlign: 'center' }}>
+        <CircularProgress size={60} />
+        <Typography variant="h6" sx={{ mt: 2 }}>Cargando datos...</Typography>
+      </Container>
+    );
+  }
 
   return (
-    <div style={{ padding: "20px" }}>
-      <Typography variant="h5" align="center" gutterBottom>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Typography variant="h4" align="center" gutterBottom sx={{ mb: 3 }}>
         Gestión de Usuarios
       </Typography>
 
-      {/* Botón para agregar nuevos usuarios */}
-      <Button
-        variant="contained"
-        color="primary"
-        onClick={handleOpenDialog}
-        sx={{ mb: 2 }}
-      >
-        Agrega Usuarios
-      </Button>
+      {/* Alert de feedback */}
+      {alert.show && (
+        <Alert 
+          severity={alert.type} 
+          onClose={() => setAlert({ show: false, type: 'info', message: '' })}
+          sx={{ mb: 2 }}
+        >
+          {alert.message}
+        </Alert>
+      )}
 
-      {/* Diálogo con formulario para agregar usuario */}
-      <Dialog open={openDialog} onClose={handleCloseDialog}>
-        <DialogTitle>Agregar Usuario</DialogTitle>
+      {/* Estadísticas con colores */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            borderRadius: 2,
+            boxShadow: 3
+          }}>
+            <CardContent>
+              <Typography color="inherit" gutterBottom sx={{ opacity: 0.9 }}>
+                Total Usuarios
+              </Typography>
+              <Typography variant="h4" color="inherit" sx={{ fontWeight: 'bold' }}>
+                {estadisticas.total_usuarios || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
+            color: 'white',
+            borderRadius: 2,
+            boxShadow: 3
+          }}>
+            <CardContent>
+              <Typography color="inherit" gutterBottom sx={{ opacity: 0.9 }}>
+                Registrados
+              </Typography>
+              <Typography variant="h4" color="inherit" sx={{ fontWeight: 'bold' }}>
+                {estadisticas.usuarios_registrados || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #FF9800 0%, #f57c00 100%)',
+            color: 'white',
+            borderRadius: 2,
+            boxShadow: 3
+          }}>
+            <CardContent>
+              <Typography color="inherit" gutterBottom sx={{ opacity: 0.9 }}>
+                Preregistrados
+              </Typography>
+              <Typography variant="h4" color="inherit" sx={{ fontWeight: 'bold' }}>
+                {estadisticas.usuarios_preregistrados || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #2196F3 0%, #1976d2 100%)',
+            color: 'white',
+            borderRadius: 2,
+            boxShadow: 3
+          }}>
+            <CardContent>
+              <Typography color="inherit" gutterBottom sx={{ opacity: 0.9 }}>
+                Activos
+              </Typography>
+              <Typography variant="h4" color="inherit" sx={{ fontWeight: 'bold' }}>
+                {estadisticas.usuarios_activos || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Barra de controles */}
+      <Paper sx={{ p: 1.5, mb: 1.5, display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Button
+          variant="contained"
+          startIcon={<PersonAddIcon />}
+          onClick={handleOpenDialog}
+          disabled={loading}
+        >
+          Agregar Usuario
+        </Button>
+
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={loadData}
+          disabled={loading}
+        >
+          Actualizar
+        </Button>
+        
+        <TextField
+          label="Buscar por nombre"
+          value={searchName}
+          onChange={(e) => { setSearchName(e.target.value); setPage(0); }}
+          size="small"
+          sx={{ flex: 1, minWidth: 200 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
+
+        {tabValue === 1 && (
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <Select
+              value={filterRole}
+              onChange={(e) => { setFilterRole(e.target.value); setPage(0); }}
+              displayEmpty
+            >
+              {roleOptions.map(option => (
+                <MenuItem key={option} value={option}>{option}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
+      </Paper>
+
+      {/* Progress bar para operaciones */}
+      {(loading || uploadProgress) && (
+        <LinearProgress sx={{ mb: 2 }} />
+      )}
+
+      {/* Pestañas */}
+      <Box sx={{ width: "100%" }}>
+        <Tabs 
+          value={tabValue} 
+          onChange={handleChangeTab} 
+          centered 
+          textColor="primary" 
+          indicatorColor="primary"
+        >
+          <Tab label={`Usuarios sin Registrar (${filteredUnregistered.length})`} />
+          <Tab label={`Usuarios Registrados (${filteredRegistered.length})`} />
+        </Tabs>
+
+        {/* Tab Panel - Usuarios sin registrar */}
+        <TabPanel value={tabValue} index={0}>
+          <Paper>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: '#f44336' }}>
+                    <TableCell sx={{ color: '#fff' }}>Número Sindicalizado</TableCell>
+                    <TableCell sx={{ color: '#fff' }}>Correo</TableCell>
+                    <TableCell sx={{ color: '#fff' }}>Fecha Nacimiento</TableCell>
+                    <TableCell sx={{ color: '#fff' }}>Fecha Creación</TableCell>
+                    <TableCell sx={{ color: '#fff' }}>Estado</TableCell>
+                    <TableCell align="center" sx={{ color: '#fff' }}>Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredUnregistered
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((row) => (
+                      <TableRow key={row.id} hover>
+                        <TableCell>{row.numero_sindicalizado}</TableCell>
+                        <TableCell>{row.correo_electronico}</TableCell>
+                        <TableCell>{new Date(row.fecha_nacimiento).toLocaleDateString()}</TableCell>
+                        <TableCell>{new Date(row.fecha_creacion).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={row.estatus} 
+                            size="small" 
+                            color={row.estatus === 'Activo' ? 'success' : 'error'}
+                          />
+                        </TableCell>
+                    <TableCell align="center">
+   <Tooltip title="Ver Perfil">
+    <IconButton 
+      size="small"
+      onClick={() => handleViewProfile(row.id)}
+    >
+      <PersonIcon />
+    </IconButton>
+  </Tooltip>
+  <Tooltip title="Eliminar Usuario">
+    <IconButton 
+      color="error" 
+      size="small"
+      onClick={() => handleDeleteClick(row.id, false)} 
+      disabled={loading}
+    >
+      <DeleteIcon />
+    </IconButton>
+  </Tooltip>
+</TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              component="div"
+              count={filteredUnregistered.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[5, 10, 25]}
+            />
+          </Paper>
+        </TabPanel>
+
+        {/* Tab Panel - Usuarios registrados */}
+        <TabPanel value={tabValue} index={1}>
+          <Paper>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: '#4caf50' }}>
+                    <TableCell sx={{ color: '#fff' }}>Nombre Completo</TableCell>
+                    <TableCell sx={{ color: '#fff' }}>Email</TableCell>
+                    <TableCell sx={{ color: '#fff' }}>Teléfono</TableCell>
+                    <TableCell sx={{ color: '#fff' }}>Universidad</TableCell>
+                    <TableCell sx={{ color: '#fff' }}>Nivel Educativo</TableCell>
+                    <TableCell sx={{ color: '#fff' }}>Rol</TableCell>
+                    <TableCell sx={{ color: '#fff' }}>Estado</TableCell>
+                    <TableCell align="center" sx={{ color: '#fff' }}>Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                 
+                   {filteredRegistered
+  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+  .map((row) => (
+    <TableRow key={row.id} hover>
+      <TableCell>
+        {`${row.nombre} ${row.apellido_paterno} ${row.apellido_materno}`}
+      </TableCell>
+      <TableCell>{row.correo_electronico}</TableCell>
+      <TableCell>{row.telefono}</TableCell>
+      <TableCell>{row.universidad}</TableCell>
+      <TableCell>{row.nivel_educativo}</TableCell>
+      <TableCell>
+        <Chip 
+          label={row.rol_sindicato} 
+          size="small" 
+          color={row.rol_sindicato === 'Admin' ? 'primary' : 'default'}
+        />
+      </TableCell>
+      <TableCell>
+        <Chip 
+          label={row.estatus} 
+          size="small" 
+          color={row.estatus === 'Activo' ? 'success' : 'error'}
+        />
+      </TableCell>
+      <TableCell align="center">
+       <Tooltip title="Ver Perfil">
+  <IconButton 
+    size="small"
+    onClick={() => handleViewProfile(row.id)}
+  >
+    <PersonIcon />
+  </IconButton>
+</Tooltip>
+        <Tooltip title="Eliminar Usuario">
+          <IconButton 
+            color="error" 
+            size="small"
+            onClick={() => handleDeleteClick(row.id, true)}
+            disabled={loading}
+          >
+            <DeleteIcon />
+          </IconButton>
+        </Tooltip>
+      </TableCell>
+    </TableRow>
+  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              component="div"
+              count={filteredRegistered.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[5, 10, 25]}
+            />
+          </Paper>
+        </TabPanel>
+      </Box>
+
+      {/* Diálogo para agregar usuario */}
+      <Dialog open={openDialog} onClose={handleCloseDialog} fullWidth maxWidth="sm">
+        <DialogTitle>
+          Agregar Usuario
+          {uploadProgress && <LinearProgress sx={{ mt: 1 }} />}
+        </DialogTitle>
         <DialogContent>
           <form onSubmit={handleFormSubmit} id="add-user-form">
+            <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
+              Opción 1: Usuario Individual
+            </Typography>
             <TextField
               margin="dense"
-              label="Correo"
+              label="Correo Electrónico"
               type="email"
               fullWidth
               variant="outlined"
               value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              required
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              disabled={formData.excelFile}
             />
             <TextField
               margin="dense"
@@ -178,11 +674,9 @@ const GestionUsuarios = () => {
               fullWidth
               variant="outlined"
               value={formData.birthDate}
-              onChange={(e) =>
-                setFormData({ ...formData, birthDate: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
               InputLabelProps={{ shrink: true }}
-              required
+              disabled={formData.excelFile}
             />
             <TextField
               margin="dense"
@@ -191,17 +685,47 @@ const GestionUsuarios = () => {
               fullWidth
               variant="outlined"
               value={formData.role}
-              onChange={(e) =>
-                setFormData({ ...formData, role: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              disabled={formData.excelFile}
             >
               <MenuItem value="agremiado">Agremiado</MenuItem>
               <MenuItem value="admin">Admin</MenuItem>
             </TextField>
+            
+            <Divider sx={{ my: 2 }} />
+            
+            <Typography variant="h6" sx={{ mb: 1 }}>
+              Opción 2: Archivo Excel Masivo
+            </Typography>
+            <TextField
+              margin="dense"
+              type="file"
+              fullWidth
+              variant="outlined"
+              inputProps={{ 
+                accept: ".xlsx,.xls",
+                onChange: (e) => {
+                  const file = e.target.files[0];
+                  setFormData({ 
+                    ...formData, 
+                    excelFile: file,
+                    // Limpiar campos individuales si se selecciona archivo
+                    email: file ? "" : formData.email,
+                    birthDate: file ? "" : formData.birthDate
+                  });
+                }
+              }}
+              helperText="Seleccione un archivo Excel (.xlsx, .xls) con columnas: correo_electronico, fecha_nacimiento"
+            />
+            {formData.excelFile && (
+              <Alert severity="info" sx={{ mt: 1 }}>
+                Archivo seleccionado: {formData.excelFile.name}
+              </Alert>
+            )}
           </form>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog} color="secondary">
+          <Button onClick={handleCloseDialog} color="warning" disabled={loading || uploadProgress}>
             Cancelar
           </Button>
           <Button
@@ -209,48 +733,112 @@ const GestionUsuarios = () => {
             form="add-user-form"
             variant="contained"
             color="primary"
+            disabled={loading || uploadProgress || (!formData.email && !formData.excelFile)}
+            startIcon={formData.excelFile ? <UploadIcon /> : <PersonAddIcon />}
           >
-            Agregar
+            {formData.excelFile ? 'Procesar Excel' : 'Agregar Individual'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Tabla para Usuarios sin registrarse */}
-      <Typography variant="h6" gutterBottom>
-        Usuarios sin registrarse
-      </Typography>
-      <Paper sx={{ height: 300, width: "100%", overflowX: "auto", mb: 4 }}>
-        <div style={{ minWidth: 600 }}>
-          <DataGrid
-            rows={unregisteredRows}
-            columns={unregisteredColumns}
-            pageSize={5}
-            rowsPerPageOptions={[5, 10]}
-            checkboxSelection
-            sx={{ border: 0 }}
-          />
-        </div>
-      </Paper>
+      {/* Diálogo de resultados de carga masiva */}
+      <Dialog open={showUploadDialog} onClose={() => setShowUploadDialog(false)} fullWidth maxWidth="md">
+        <DialogTitle>Resultados de Carga Masiva</DialogTitle>
+        <DialogContent>
+          {uploadResults && (
+            <>
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={3}>
+                  <Card>
+                    <CardContent sx={{ textAlign: 'center' }}>
+                      <Typography color="textSecondary">Total</Typography>
+                      <Typography variant="h4">{uploadResults.resumen.total_filas}</Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={3}>
+                  <Card>
+                    <CardContent sx={{ textAlign: 'center' }}>
+                      <Typography color="success.main">Exitosos</Typography>
+                      <Typography variant="h4" color="success.main">
+                        {uploadResults.resumen.exitosos}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={3}>
+                  <Card>
+                    <CardContent sx={{ textAlign: 'center' }}>
+                      <Typography color="error.main">Errores</Typography>
+                      <Typography variant="h4" color="error.main">
+                        {uploadResults.resumen.errores}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={3}>
+                  <Card>
+                    <CardContent sx={{ textAlign: 'center' }}>
+                      <Typography color="warning.main">Duplicados</Typography>
+                      <Typography variant="h4" color="warning.main">
+                        {uploadResults.resumen.duplicados}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
 
-      {/* Tabla para Usuarios registrados */}
-      <Typography variant="h6" gutterBottom>
-        Usuarios registrados
-      </Typography>
-      <Paper sx={{ height: 500, width: "100%", overflowX: "auto" }}>
-        <div style={{ minWidth: 1500 }}>
-          <DataGrid
-            rows={registeredRows}
-            columns={registeredColumns}
-            initialState={{
-              pagination: { paginationModel: { page: 0, pageSize: 5 } },
-            }}
-            pageSizeOptions={[5, 10]}
-            checkboxSelection
-            sx={{ border: 0 }}
-          />
-        </div>
-      </Paper>
-    </div>
+              <Typography variant="h6" gutterBottom>Detalles:</Typography>
+              <List sx={{ maxHeight: 300, overflow: 'auto' }}>
+                {uploadResults.detalles.map((detalle, index) => (
+                  <ListItem key={index}>
+                    <ListItemIcon>
+                      {detalle.error ? (
+                        <ErrorIcon color="error" />
+                      ) : detalle.mensaje?.includes('ya existe') ? (
+                        <WarningIcon color="warning" />
+                      ) : (
+                        <CheckCircleIcon color="success" />
+                      )}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={`Fila ${detalle.fila}`}
+                      secondary={detalle.mensaje || detalle.error}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowUploadDialog(false)} variant="contained">
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo de confirmación para eliminar */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} fullWidth maxWidth="xs">
+  <DialogTitle>Confirmar Eliminación</DialogTitle>
+  <DialogContent>
+    <Typography>
+      ¿Está seguro de eliminar al usuario <strong>{userToDelete.name}</strong>?
+    </Typography>
+    <Alert severity="warning" sx={{ mt: 2 }}>
+      Esta acción no se puede deshacer. Se eliminarán todos los datos asociados al usuario.
+    </Alert>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setDeleteDialogOpen(false)} disabled={loading}>
+      Cancelar
+    </Button>
+    <Button color="error" onClick={handleConfirmDelete} disabled={loading}>
+      {loading ? <CircularProgress size={20} /> : 'Eliminar'}
+    </Button>
+  </DialogActions>
+</Dialog>
+    </Container>
   );
 };
 

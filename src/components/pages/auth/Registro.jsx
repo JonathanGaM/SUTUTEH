@@ -120,6 +120,8 @@ const Registro = () => {
   const [educationalProgram, setEducationalProgram] = useState("");
   const [workerNumber, setWorkerNumber] = useState("");
   const [educationalLevel, setEducationalLevel] = useState("");
+  const [antiguedad, setAntiguedad] = useState(null);
+
 
    // Catálogos
    const [universidades, setUniversidades] = useState([]);
@@ -326,6 +328,11 @@ if (activeStep === 0) {
       newErrors.educationalProgram = "Seleccione el programa educativo.";
     if (!/^[0-9]+$/.test(workerNumber)) newErrors.workerNumber = "El número de trabajador debe ser numérico.";
     if (!educationalLevel) newErrors.educationalLevel = "Seleccione su nivel educativo.";
+    if (!antiguedad) {
+      newErrors.antiguedad = "Seleccione su fecha de antigüedad.";
+    } else if (antiguedad.year() < 2019) {
+      newErrors.antiguedad = "La fecha de antigüedad no puede ser menor a 2019.";
+    }
 
     if (Object.keys(newErrors).length) {
       setErrors(newErrors);
@@ -349,7 +356,8 @@ if (activeStep === 0) {
         universityPosition,
         educationalProgram,
         workerNumber,
-        educationalLevel
+        educationalLevel,
+       antiguedad: antiguedad ? antiguedad.format("YYYY-MM-DD") : null
       });
 
       setSnackbar({ open: true, message: "Registro completado con éxito.", severity: "success" });
@@ -460,6 +468,7 @@ if (activeStep === 0) {
       </Typography>
     )}
   </FormControl>
+   
 )}
 
 
@@ -475,6 +484,24 @@ if (activeStep === 0) {
               </Select>
               {errors.educationalLevel && <Typography variant='caption' color='error'>{errors.educationalLevel}</Typography>}
             </FormControl>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label="Fecha de Antigüedad"
+                value={antiguedad}
+                onChange={(val) => setAntiguedad(val)}
+                minDate={dayjs("2019-01-01")}
+                maxDate={dayjs()}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    margin: "dense",
+                    error: Boolean(errors.antiguedad),
+                    helperText: errors.antiguedad,
+                    sx: inputStyles
+                  }
+                }}
+              />
+            </LocalizationProvider>
           </Box>
         );
       default:

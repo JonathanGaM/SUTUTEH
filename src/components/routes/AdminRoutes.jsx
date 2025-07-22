@@ -14,6 +14,7 @@ import Encuestas from '../pages/admin/EncuestasyVotaciones/admin_encuestas';
 import Estadisticas from '../pages/admin/EncuestasyVotaciones/Estadisticas';
 import Votaciones from '../pages/admin/EncuestasyVotaciones/admin_votaciones';
 import Reuniones from '../pages/admin/EncuestasyVotaciones/admin_reuniones';
+import Predicciones from '../pages/admin/EncuestasyVotaciones/admin_Predicciones'; // ← NUEVA IMPORTACIÓN
 import NotificacionesAutomatica from '../pages/admin/Comunicaciones/NotificacionesAutomatica';
 import ListasNegrayBlanca from '../pages/admin/MonitoreoIncidencias/ListasNegrayBlanca';
 import Rifas from '../pages/admin/GestionFinanciera/admin_Rifas';
@@ -25,6 +26,7 @@ import Transparencia from '../pages/admin/GestionFinanciera/AdminTransparencia';
 import DocumentosRegulatorios from '../pages/admin/DocumentosRegulatorios/admin_DocumentosRegulatorios';
 
 import GestionUsuarios from '../pages/admin/GestionUsuarios/GestionUsuarios';
+import Usuario from '../pages/admin/GestionUsuarios/Usuario'; // ← NUEVA IMPORTACIÓN
 import GestionRoles from '../pages/admin/GestionUsuarios/GestionRoles';
 import EstadisticaReuniones from '../pages/admin/EncuestasyVotaciones/estadisticareuniones';
 import EstadisticasEncuestasVotos from "../pages/admin/EncuestasyVotaciones/EstadisticasEncuestasVotos";
@@ -54,6 +56,7 @@ const AdminRoutes = () => {
         <Route path="/admin_votaciones" element={<Votaciones />} />
         <Route path="/estadistica_reuniones/:id" element={<EstadisticaReuniones />} />
         <Route path="/admin_reuniones" element={<Reuniones/>}/>
+         <Route path="/admin_predicciones" element={<Predicciones/>}/> {/* ← NUEVA RUTA */}
         
         {/* === COMUNICACIONES === */}
         <Route path="/comunicaciones" element={<NotificacionesAutomatica />} />
@@ -76,6 +79,7 @@ const AdminRoutes = () => {
         {/* === GESTIÓN DE USUARIOS === */}
         <Route path="/gestion-usuarios" element={<GestionUsuarios />} />
         <Route path="/gestion-roles" element={<GestionRoles />} />
+        <Route path="/usuario/:id" element={<Usuario />} /> 
       </Routes>
     
   );

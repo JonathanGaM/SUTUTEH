@@ -158,6 +158,7 @@ function Layout() {
     "/admin_votaciones",
     "/admin_reuniones",
     "/estadistica_reuniones",
+    "/admin_predicciones",  // ← NUEVA RUTA AGREGADA
     "/comunicaciones",
     "/lista-negrayblanca",
     "/admin_rifas",
@@ -168,6 +169,7 @@ function Layout() {
     "/admin_DocumentosRegulatorios",
     "/gestion-usuarios",
     "/gestion-roles",
+    "/usuario",
   ];
   const publicPaths = [
     "/",

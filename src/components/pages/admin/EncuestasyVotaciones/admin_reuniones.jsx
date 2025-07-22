@@ -1,4 +1,4 @@
-//admin_reuniones.jsx - MODIFICADO
+//admin_reuniones.jsx - MODIFICADO CON BOTÓN PREDECIR ASISTENCIA
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import axios from "axios";
 import jsPDF from "jspdf";
@@ -38,6 +38,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
 import QrCodeIcon from "@mui/icons-material/QrCode";
 import AssessmentIcon from "@mui/icons-material/Assessment";
+import PsychologyIcon from "@mui/icons-material/Psychology";
 import QRCode from "react-qr-code";
 import { useNavigate } from "react-router-dom";
 import { Calendar, momentLocalizer, Views } from "react-big-calendar";
@@ -160,6 +161,13 @@ export default function AdminReuniones() {
   // QR dialog
   const [qrOpen, setQrOpen] = useState(false);
   const qrRef = useRef();
+
+  // Función para manejar la predicción de asistencia
+  const handlePredecirAsistencia = () => {
+    showSnackbar("Redirigiendo a módulo de predicciones...", "info");
+    // Navegar al módulo de predicciones
+    navigate('/admin_predicciones');
+  };
 
   const openForm = (meeting = null) => {
     if (meeting) {
@@ -431,7 +439,7 @@ export default function AdminReuniones() {
             <MenuItem value="Hoy">Hoy</MenuItem>
           </Select>
         </FormControl>
-         {/*  NUEVO BOTÓN - Estadísticas Anuales */}
+         {/*  BOTÓN - Estadísticas Anuales */}
   <Button 
     variant="outlined" 
     color="secondary"
@@ -441,6 +449,16 @@ export default function AdminReuniones() {
   >
     Estadísticas Anuales
   </Button>
+        {/* NUEVO BOTÓN - Predecir Asistencia */}
+        <Button 
+          variant="outlined" 
+          color="primary"
+          onClick={() => handlePredecirAsistencia()}
+          sx={{ py: 0.8 }}
+          startIcon={<PsychologyIcon />}
+        >
+          Predecir Asistencia
+        </Button>
         <Button variant="contained" onClick={() => openForm()} sx={{ py: 0.8 }}>
           Crear Nueva Reunión
         </Button>
@@ -543,6 +561,16 @@ export default function AdminReuniones() {
                           <AssessmentIcon />
                         </IconButton>
                       )}
+                      {/* NUEVO BOTÓN - Predecir Asistencia por reunión individual */}
+                      {(m.status === "Programada" || m.status === "Registro_Abierto") && (
+                        <IconButton
+                          color="primary"
+                          sx={{ p: 0.5 }}
+                          onClick={() => handlePredecirAsistencia()}
+                        >
+                          <PsychologyIcon />
+                        </IconButton>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -593,6 +621,18 @@ export default function AdminReuniones() {
           </Typography>
         </DialogContent>
         <DialogActions>
+          {/* NUEVO BOTÓN - Predecir Asistencia en el diálogo de detalle */}
+          {(current?.status === "Programada" || current?.status === "Registro_Abierto") && (
+            <Button 
+              onClick={() => handlePredecirAsistencia()} 
+              size="small"
+              startIcon={<PsychologyIcon />}
+              color="primary"
+              variant="outlined"
+            >
+              Predecir Asistencia
+            </Button>
+          )}
           <Button onClick={closeView} size="small">
             Cerrar
           </Button>
