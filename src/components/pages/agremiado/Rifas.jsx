@@ -29,9 +29,7 @@ import {
   Alert
 } from '@mui/material';
 import {
-  CalendarToday,
-  AccessTime,
-  LocationOn,
+  CalendarToday, AccessTime, LocationOn,
   AttachMoney,
   ConfirmationNumber,
   EmojiEvents,
@@ -42,6 +40,8 @@ import {
   Person
 } from '@mui/icons-material';
 import { API_URL } from '../../../config/apiConfig';
+import { jwtDecode } from 'jwt-decode';
+import Cookies from 'js-cookie';
 
 // Helper functions for TransferList
 function not(a, b) {
@@ -100,7 +100,7 @@ export default function Rifas() {
       setLoading(true);
       const response = await fetch(`${API_URL}/api/rifas`);
       const result = await response.json();
-      
+
       if (result.success && result.data.length > 0) {
         setRifas(result.data);
         // Seleccionar la primera rifa activa o la primera disponible
@@ -109,7 +109,7 @@ export default function Rifas() {
           const fechaCierre = new Date(rifa.fecha_cierre);
           return fechaCierre > ahora && rifa.boletos_disponibles > 0;
         }) || result.data[0];
-        
+
         setRifaSeleccionada(rifaActiva);
         generateBoletosDisponibles(rifaActiva);
       }
@@ -124,15 +124,15 @@ export default function Rifas() {
   // Generar números de boletos disponibles
   const generateBoletosDisponibles = (rifa) => {
     if (!rifa) return;
-    
+
     const totalBoletos = rifa.boletos_disponibles;
     const boletosDisponibles = [];
-    
+
     // Generar números del 1 al total de boletos
     for (let i = 1; i <= totalBoletos; i++) {
       boletosDisponibles.push(i);
     }
-    
+
     setLeft(boletosDisponibles);
     setRight([]);
     setChecked([]);
@@ -180,23 +180,69 @@ export default function Rifas() {
   };
 
   // Función para manejar la compra (placeholder)
-  const handleCompra = () => {
-    if (right.length === 0) return;
-    
-    // Aquí se integrará MercadoPago
-    console.log('Comprando boletos:', right);
-    console.log('Total:', right.length * rifaSeleccionada.precio);
-    
-    // Por ahora mostrar alert
-    alert(`¡Próximamente! Comprando ${right.length} boletos por $${right.length * rifaSeleccionada.precio}`);
-  };
+// Función para manejar la compra - VERSIÓN CORREGIDA
+const handleCompra = async () => {
+  console.log("Entró a handleCompra");
+
+  if (right.length === 0) {
+    alert('Selecciona al menos un boleto');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/api/pagos`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include', // ¡Clave para enviar la cookie!
+      body: JSON.stringify({
+        rifa_id: rifaSeleccionada.id, // ¡AGREGAR rifa_id!
+        boletos: right,
+        total: right.length * rifaSeleccionada.precio
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Error en la respuesta:', data);
+      if (response.status === 401) {
+        alert('Debes iniciar sesión para comprar boletos');
+        // Opcional: redirigir al login
+        // window.location.href = '/login';
+      } else {
+        alert(data.error || 'Error al procesar el pago');
+      }
+      return;
+    }
+
+    if (data.init_point) {
+      // Guardar datos en localStorage para recuperación
+      localStorage.setItem("compra_rifa", JSON.stringify({
+        rifa_id: rifaSeleccionada.id,
+        boletos: right,
+        total: right.length * rifaSeleccionada.precio
+      }));
+      
+      // Redirigir a Mercado Pago
+      window.location.href = data.init_point;
+    } else {
+      alert('No se pudo generar el pago.');
+    }
+  } catch (error) {
+    console.error('Error en el pago:', error);
+    alert('Hubo un error al procesar el pago. Intenta nuevamente.');
+  }
+};
+
 
   // Lista personalizada mejorada - CAMBIO: Color gris en lugar de verde
   const customList = (title, items, isSelected = false) => (
-    <Card 
+    <Card
       elevation={3}
       sx={{
-        background: isSelected 
+        background: isSelected
           ? 'linear-gradient(135deg, #f5f5f5 0%, #fafafa 100%)'  // CAMBIO: Gris claro
           : 'white',
         border: isSelected ? '2px solid #9e9e9e' : '1px solid #e0e0e0',  // CAMBIO: Borde gris
@@ -205,18 +251,18 @@ export default function Rifas() {
     >
       <CardContent sx={{ p: 2 }}>
         <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-          <Typography 
-            variant="h6" 
+          <Typography
+            variant="h6"
             fontWeight="600"
             color={isSelected ? "text.primary" : "text.primary"}  // CAMBIO: Color normal
           >
             {title}
           </Typography>
-          <Chip 
-            label={items.length} 
-            size="medium" 
+          <Chip
+            label={items.length}
+            size="medium"
             color={isSelected ? "default" : "default"}  // CAMBIO: Chip gris
-            sx={{ 
+            sx={{
               fontWeight: '600',
               fontSize: '0.875rem'
             }}
@@ -225,8 +271,8 @@ export default function Rifas() {
         <Divider sx={{ mb: 2 }} />
         <Paper
           variant="outlined"
-          sx={{ 
-            height: 280, 
+          sx={{
+            height: 280,
             overflow: 'auto',
             p: 1,
             borderRadius: 2,
@@ -235,12 +281,12 @@ export default function Rifas() {
         >
           <List dense>
             {items.map((value) => (
-              <ListItemButton 
-                key={value} 
+              <ListItemButton
+                key={value}
                 onClick={handleToggle(value)}
                 selected={checked.includes(value)}
-                sx={{ 
-                  mb: 0.5, 
+                sx={{
+                  mb: 0.5,
                   py: 1,
                   borderRadius: 2,
                   '&.Mui-selected': {
@@ -252,14 +298,14 @@ export default function Rifas() {
                   }
                 }}
               >
-                <Checkbox 
-                  size="small" 
-                  checked={checked.includes(value)} 
-                  disableRipple 
+                <Checkbox
+                  size="small"
+                  checked={checked.includes(value)}
+                  disableRipple
                   color="default"  // CAMBIO: Checkbox gris
                   sx={{ mr: 1 }}
                 />
-                <ListItemText 
+                <ListItemText
                   primary={
                     <Box display="flex" alignItems="center" gap={1}>
                       <ConfirmationNumber fontSize="small" />
@@ -267,7 +313,7 @@ export default function Rifas() {
                         Boleto #{value.toString().padStart(3, '0')}
                       </Typography>
                     </Box>
-                  } 
+                  }
                 />
               </ListItemButton>
             ))}
@@ -315,10 +361,10 @@ export default function Rifas() {
     <Container maxWidth="xl" sx={{ py: 4 }}>
       {/* Header */}
       <Box sx={{ textAlign: 'center', mb: 4 }}>
-        <Typography 
-          variant="h4" 
+        <Typography
+          variant="h4"
           component="h1"
-          sx={{ 
+          sx={{
             color: 'text.primary',
             fontWeight: 'bold',
             mb: 1
@@ -326,17 +372,17 @@ export default function Rifas() {
         >
           Rifas Sututeh
         </Typography>
-        
+
         <Typography variant="body1" color="text.secondary">
           ¡Participa y gana increíbles premios!
         </Typography>
-        <Box sx={{ 
-          height: 4, 
-          width: 120, 
+        <Box sx={{
+          height: 4,
+          width: 120,
           background: 'linear-gradient(45deg, #2196f3, #4caf50)',
-          mx: 'auto', 
+          mx: 'auto',
           mt: 1,
-          mb:2
+          mb: 2
         }} />
       </Box>
 
@@ -344,9 +390,9 @@ export default function Rifas() {
         {/* Información de la rifa - Lado izquierdo */}
         <Grid item xs={12} md={5}>
           {/* Card principal de la rifa */}
-          <Card 
-            elevation={6} 
-            sx={{ 
+          <Card
+            elevation={6}
+            sx={{
               mb: 3,
               borderRadius: 3,
               overflow: 'hidden'
@@ -359,24 +405,24 @@ export default function Rifas() {
                 label="¡ACTIVA!"
                 color="warning"
                 size="medium"
-                sx={{ 
-                  position: 'absolute', 
-                  top: 16, 
-                  right: 16, 
+                sx={{
+                  position: 'absolute',
+                  top: 16,
+                  right: 16,
                   zIndex: 1,
                   fontWeight: '600',
                   boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
                 }}
               />
-              
-              <CardMedia 
-                component="img" 
-                height="180" 
-                image={rifaSeleccionada.foto_rifa || "https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=800&h=400&q=80"} 
+
+              <CardMedia
+                component="img"
+                height="180"
+                image={rifaSeleccionada.foto_rifa || "https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=800&h=400&q=80"}
                 alt="Rifa Banner"
               />
             </Box>
-            
+
             <CardContent sx={{ p: 3 }}>
               <Typography variant="h5" gutterBottom fontWeight="600" color="primary">
                 {rifaSeleccionada.titulo}
@@ -384,8 +430,8 @@ export default function Rifas() {
               <Typography variant="body2" color="text.secondary" paragraph>
                 {rifaSeleccionada.descripcion}
               </Typography>
-              
-             <Grid container spacing={2} sx={{ mb: 3 }}>
+
+              <Grid container spacing={2} sx={{ mb: 3 }}>
                 <Grid item xs={6}>
                   <Box display="flex" alignItems="center" gap={1.5} mb={2}>
                     <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
@@ -401,7 +447,7 @@ export default function Rifas() {
                     </Box>
                   </Box>
                 </Grid>
-                
+
                 <Grid item xs={6}>
                   <Box display="flex" alignItems="center" gap={1.5} mb={2}>
                     <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
@@ -417,7 +463,7 @@ export default function Rifas() {
                     </Box>
                   </Box>
                 </Grid>
-                
+
                 <Grid item xs={6}>
                   <Box display="flex" alignItems="center" gap={1.5}>
                     <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
@@ -433,7 +479,7 @@ export default function Rifas() {
                     </Box>
                   </Box>
                 </Grid>
-                
+
                 <Grid item xs={6}>
                   <Box display="flex" alignItems="center" gap={1.5}>
                     <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
@@ -455,9 +501,9 @@ export default function Rifas() {
                 <Typography variant="body2" fontWeight="600" gutterBottom>
                   Progreso de la Rifa
                 </Typography>
-                <LinearProgress 
-                  variant="determinate" 
-                  value={((rifaSeleccionada.boletos_disponibles - left.length) / rifaSeleccionada.boletos_disponibles) * 100} 
+                <LinearProgress
+                  variant="determinate"
+                  value={((rifaSeleccionada.boletos_disponibles - left.length) / rifaSeleccionada.boletos_disponibles) * 100}
                   sx={{ mb: 1, height: 8, borderRadius: 4 }}
                   color="success"
                 />
@@ -474,23 +520,23 @@ export default function Rifas() {
           </Card>
 
           {/* Premios - CAMBIO: Imágenes verticales más grandes */}
-          <Typography 
-            variant="h6" 
-            gutterBottom 
+          <Typography
+            variant="h6"
+            gutterBottom
             fontWeight="600"
             color="success.main"
             sx={{ mb: 2 }}
           >
             Premios Increíbles
           </Typography>
-          
+
           <Grid container spacing={2}>
             {rifaSeleccionada.productos && rifaSeleccionada.productos.map((prod, index) => (
               <Grid item xs={12} sm={6} key={prod.id}>
                 <Zoom in timeout={300 * (index + 1)}>
-                  <Card 
-                    onClick={() => openDialog(prod)} 
-                    sx={{ 
+                  <Card
+                    onClick={() => openDialog(prod)}
+                    sx={{
                       cursor: 'pointer',
                       transition: 'all 0.3s ease',
                       borderRadius: 3,
@@ -508,22 +554,22 @@ export default function Rifas() {
                         label={`${index + 1}° Premio`}
                         color="warning"
                         size="small"
-                        sx={{ 
-                          position: 'absolute', 
-                          top: 8, 
-                          left: 8, 
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          left: 8,
                           zIndex: 1,
                           fontWeight: '600',
                           fontSize: '0.75rem',
                           boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
                         }}
                       />
-                      
+
                       {/* Imagen vertical más grande */}
-                      <CardMedia 
-                        component="img" 
+                      <CardMedia
+                        component="img"
                         height="180"
-                        image={prod.foto || "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?auto=format&fit=crop&w=400&h=400&q=80"} 
+                        image={prod.foto || "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?auto=format&fit=crop&w=400&h=400&q=80"}
                         alt={prod.titulo}
                         sx={{
                           objectFit: 'cover',
@@ -531,14 +577,14 @@ export default function Rifas() {
                         }}
                       />
                     </Box>
-                    
+
                     {/* Contenido de la tarjeta */}
                     <CardContent sx={{ p: 2 }}>
-                      <Typography 
-                        variant="h6" 
-                        fontWeight="600" 
+                      <Typography
+                        variant="h6"
+                        fontWeight="600"
                         gutterBottom
-                        sx={{ 
+                        sx={{
                           fontSize: '1.1rem',
                           lineHeight: 1.3,
                           color: 'primary.main'
@@ -546,11 +592,11 @@ export default function Rifas() {
                       >
                         {prod.titulo}
                       </Typography>
-                      
-                      <Typography 
-                        variant="body2" 
-                        color="text.secondary" 
-                        sx={{ 
+
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
                           mb: 1.5,
                           display: '-webkit-box',
                           WebkitLineClamp: 2,
@@ -561,24 +607,24 @@ export default function Rifas() {
                       >
                         {prod.descripcion || "Increíble premio esperándote"}
                       </Typography>
-                      
+
                       <Box display="flex" alignItems="center" justifyContent="space-between">
-                        <Chip 
+                        <Chip
                           icon={<EmojiEvents fontSize="small" />}
-                          label="Premio" 
-                          size="small" 
-                          color="success" 
+                          label="Premio"
+                          size="small"
+                          color="success"
                           variant="outlined"
-                          sx={{ 
+                          sx={{
                             fontWeight: '600',
                             fontSize: '0.75rem'
                           }}
                         />
-                        
-                        <Typography 
-                          variant="caption" 
+
+                        <Typography
+                          variant="caption"
                           color="primary.main"
-                          sx={{ 
+                          sx={{
                             fontWeight: '600',
                             textTransform: 'uppercase',
                             letterSpacing: '0.5px'
@@ -592,13 +638,13 @@ export default function Rifas() {
                 </Zoom>
               </Grid>
             ))}
-            
+
             {/* Mostrar mensaje si no hay productos */}
             {(!rifaSeleccionada.productos || rifaSeleccionada.productos.length === 0) && (
               <Grid item xs={12}>
-                <Paper 
-                  sx={{ 
-                    p: 4, 
+                <Paper
+                  sx={{
+                    p: 4,
                     textAlign: 'center',
                     borderRadius: 3,
                     border: '2px dashed #e0e0e0'
@@ -620,9 +666,9 @@ export default function Rifas() {
         {/* Selección de números - Lado derecho */}
         <Grid item xs={12} md={7}>
           <Box mb={3}>
-            <Typography 
-              variant="h6" 
-              gutterBottom 
+            <Typography
+              variant="h6"
+              gutterBottom
               fontWeight="600"
               color="success.main"
             >
@@ -637,14 +683,14 @@ export default function Rifas() {
             <Grid item xs={12} sm={5}>
               {customList('Números Disponibles', left, false)}
             </Grid>
-            
+
             <Grid item xs={12} sm={2}>
-              <Box 
-                sx={{ 
-                  height: '100%', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  justifyContent: 'center' 
+              <Box
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
                 }}
               >
                 <Stack spacing={1} alignItems="center">
@@ -654,8 +700,8 @@ export default function Rifas() {
                     onClick={handleAllRight}
                     disabled={left.length === 0}
                     color="success"
-                    sx={{ 
-                      minWidth: 45, 
+                    sx={{
+                      minWidth: 45,
                       fontSize: '0.875rem',
                       fontWeight: '600'
                     }}
@@ -690,8 +736,8 @@ export default function Rifas() {
                     onClick={handleAllLeft}
                     disabled={right.length === 0}
                     color="warning"
-                    sx={{ 
-                      minWidth: 45, 
+                    sx={{
+                      minWidth: 45,
                       fontSize: '0.875rem',
                       fontWeight: '600'
                     }}
@@ -701,7 +747,7 @@ export default function Rifas() {
                 </Stack>
               </Box>
             </Grid>
-            
+
             <Grid item xs={12} sm={5}>
               {customList('Mis Boletos', right, true)}
             </Grid>
@@ -711,9 +757,9 @@ export default function Rifas() {
           <Fade in={right.length > 0}>
             <Paper
               elevation={4}
-              sx={{ 
-                mt: 3, 
-                p: 3, 
+              sx={{
+                mt: 3,
+                p: 3,
                 textAlign: 'center',
                 borderRadius: 3,
                 background: 'linear-gradient(135deg, #e8f5e8 0%, #f1f8e9 100%)',
@@ -741,7 +787,7 @@ export default function Rifas() {
                   </Typography>
                 </Box>
               </Box>
-              
+
               <Button
                 variant="contained"
                 size="large"
@@ -749,7 +795,7 @@ export default function Rifas() {
                 startIcon={<LocalActivity />}
                 color="success"
                 onClick={handleCompra}
-                sx={{ 
+                sx={{
                   py: 1.5,
                   fontSize: '1rem',
                   fontWeight: '600',
@@ -764,9 +810,9 @@ export default function Rifas() {
       </Grid>
 
       {/* Dialog de productos - CAMBIO: Imagen más vertical en el modal */}
-      <Dialog 
-        open={open} 
-        onClose={closeDialog} 
+      <Dialog
+        open={open}
+        onClose={closeDialog}
         maxWidth="sm"
         fullWidth
         TransitionComponent={Zoom}
@@ -789,13 +835,13 @@ export default function Rifas() {
         <DialogContent sx={{ p: 3 }}>
           {currentProduct && (
             <>
-              <CardMedia 
-                component="img" 
+              <CardMedia
+                component="img"
                 height="300"
-                image={currentProduct.foto || "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?auto=format&fit=crop&w=400&h=400&q=80"} 
+                image={currentProduct.foto || "https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?auto=format&fit=crop&w=400&h=400&q=80"}
                 alt={currentProduct.titulo}
-                sx={{ 
-                  mb: 2, 
+                sx={{
+                  mb: 2,
                   borderRadius: 2,
                   objectFit: 'cover'  /* CAMBIO: Asegurar que se vea bien vertical */
                 }}
@@ -807,9 +853,9 @@ export default function Rifas() {
                 <Typography variant="h6" fontWeight="600">
                   Premio de la rifa
                 </Typography>
-                <Chip 
-                  label="¡Puedes ganarlo!" 
-                  color="success" 
+                <Chip
+                  label="¡Puedes ganarlo!"
+                  color="success"
                   size="large"
                   sx={{ fontWeight: '600', fontSize: '1rem' }}
                 />
