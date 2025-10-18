@@ -32,6 +32,8 @@ import { Calendar, momentLocalizer, Views } from "react-big-calendar";
 import moment from "moment";
 import "moment/locale/es";
 import "react-big-calendar/lib/css/react-big-calendar.css";
+import confetti from "canvas-confetti";
+
 
 // Función para obtener el color del chip según el estado de asistencia
 const getAsistenciaColor = (estado) => {
@@ -89,6 +91,32 @@ export default function Reuniones() {
 
   // Snackbar state
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  // ✅ Estados para el diálogo de asistencia
+const [openAsistenciaDialog, setOpenAsistenciaDialog] = useState(false);
+const [asistenciaInfo, setAsistenciaInfo] = useState({ estado: "", puntaje: 0 });
+
+// 🎉 Confeti al abrir el modal
+useEffect(() => {
+  if (openAsistenciaDialog) {
+    const duracion = 1500;
+    const fin = Date.now() + duracion;
+
+    const lanzar = () => {
+      confetti({
+        particleCount: 8,
+        startVelocity: 25,
+        spread: 360,
+        ticks: 60,
+        origin: { x: Math.random(), y: Math.random() - 0.2 },
+        colors: ["#4CAF50", "#81C784", "#C8E6C9", "#A5D6A7"],
+      });
+      if (Date.now() < fin) requestAnimationFrame(lanzar);
+    };
+
+    lanzar();
+  }
+}, [openAsistenciaDialog]);
+
   const showSnackbar = (message, severity = "success") => {
     setSnackbar({ open: true, message, severity });
   };
@@ -159,10 +187,9 @@ export default function Reuniones() {
                 .then((response) => {
                   // El backend ahora devuelve información sobre el estado registrado
                   const { estado, puntaje, estadoReunion } = response.data;
-                  showSnackbar(
-                    `Asistencia registrada: ${getAsistenciaLabel(estado)} (${puntaje} puntos)`, 
-                    "success"
-                  );
+                  setAsistenciaInfo({ estado, puntaje });
+setOpenAsistenciaDialog(true);
+
                   
                   // Recargar las reuniones con asistencia actualizada
                   return axios.get(`${API_URL}/api/reuniones/usuario/asistencia`, { withCredentials: true });
@@ -485,6 +512,54 @@ export default function Reuniones() {
           </Button>
         </DialogActions>
       </Dialog>
+      {/* ✅ Diálogo de asistencia registrada con confeti */}
+<Dialog
+  open={openAsistenciaDialog}
+  onClose={() => setOpenAsistenciaDialog(false)}
+  fullWidth
+  maxWidth="xs"
+  PaperProps={{
+    sx: {
+      textAlign: "center",
+      borderRadius: 3,
+      p: 2,
+      position: "relative",
+      overflow: "hidden"
+    },
+  }}
+>
+  <DialogTitle sx={{ fontWeight: "bold", color: "#2E7D32" }}>
+    ✅ ¡Asistencia registrada!
+  </DialogTitle>
+
+  <DialogContent>
+    <Typography variant="h6" sx={{ mb: 1, color: "#388E3C" }}>
+      {getAsistenciaLabel(asistenciaInfo.estado)}
+    </Typography>
+    <Typography variant="body1" sx={{ mb: 2 }}>
+      Has ganado <strong>{asistenciaInfo.puntaje}</strong> puntos 🎯
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      ¡Gracias por participar en esta reunión!
+    </Typography>
+  </DialogContent>
+
+  <DialogActions sx={{ justifyContent: "center", pb: 2 }}>
+    <Button
+      variant="contained"
+      onClick={() => setOpenAsistenciaDialog(false)}
+      sx={{
+        backgroundColor: "#2E7D32",
+        "&:hover": { backgroundColor: "#1B5E20" },
+        px: 4,
+        borderRadius: 2,
+      }}
+    >
+      Aceptar
+    </Button>
+  </DialogActions>
+</Dialog>
+
 
       {/* Snackbar */}
       <Snackbar

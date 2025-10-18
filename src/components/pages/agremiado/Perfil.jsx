@@ -40,6 +40,10 @@ import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { useNavigate } from 'react-router-dom';
 import { API_URL } from "../../../config/apiConfig";
+import PuntosDialog from "./PuntosDialog"; // al inicio del archivo
+import confetti from "canvas-confetti"; // ⬅️ agrégalo arriba del archivo (solo una vez)
+
+
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -464,6 +468,8 @@ if (!userData) {
             <Typography variant="h6" sx={{ mt: 1 }}>
               {`${userData.nombre} ${userData.apellido_paterno} ${userData.apellido_materno}`}
             </Typography>
+            <PuntosDialog userId={userData.id} />
+
 
             {/* Si se seleccionó una nueva foto, mostrar botones "Guardar" (verde) y "Cancelar" */}
             {preview && (
@@ -871,44 +877,69 @@ if (!userData) {
       </Button>
     </DialogActions>
   </Dialog>
-{/* ——— Diálogo de éxito ——— */}
+{/* ——— Diálogo de éxito con confeti y puntos sumados ——— */}
+
 <Dialog
-   open={openSuccessDialog}
-  // ya no hay botón, así que onClose solo se dispara desde el timer
+  open={openSuccessDialog}
   aria-labelledby="success-dialog-title"
-  PaperProps={{ sx: { textAlign: "center" } }}
+  PaperProps={{
+    sx: {
+      textAlign: "center",
+      borderRadius: 3,
+      p: 2,
+      boxShadow: "0 0 20px rgba(0,0,0,0.2)",
+      background: "linear-gradient(135deg, #fff3e0, #ffe0b2)",
+    },
+  }}
+  TransitionComponent={Transition}
+  onEntered={() => {
+    // 🎉 Lanza confeti una vez al abrir el diálogo
+    const duration = 1200;
+    const end = Date.now() + duration;
+    (function frame() {
+      confetti({
+        particleCount: 6,
+        startVelocity: 25,
+        spread: 360,
+        ticks: 60,
+        origin: { x: Math.random(), y: Math.random() - 0.2 },
+        colors: ["#FF9800", "#FFB300", "#FFD54F", "#FFA726"],
+      });
+      if (Date.now() < end) requestAnimationFrame(frame);
+    })();
+  }}
 >
-  <DialogTitle id="success-dialog-title">
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-      {/* Puedes usar cualquier ícono de éxito; aquí un ejemplo genérico */}
+  <DialogTitle id="success-dialog-title" sx={{ fontWeight: "bold", color: "#E65100" }}>
+    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 1 }}>
       <Box
-        component="span"
         sx={{
-          display: "inline-block",
-          width: 24,
-          height: 24,
-          bgcolor: "green",
-          borderRadius: "50%",
-          textAlign: "center",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "#43A047",
           color: "white",
-          fontSize: "1rem",
-          lineHeight: "24px",
+          width: 40,
+          height: 40,
+          borderRadius: "50%",
+          fontSize: 20,
+          fontWeight: "bold",
         }}
       >
         ✓
       </Box>
-      <Typography component="span" fontWeight="bold">
-        ¡Éxito!
-      </Typography>
+      <Typography variant="h6">¡Puntos Ganados!</Typography>
     </Box>
   </DialogTitle>
   <DialogContent>
-    <Typography>
+    <Typography sx={{ fontSize: 16, color: "#4E342E", mb: 1 }}>
       {successMessage}
     </Typography>
+    <Typography sx={{ color: "#E65100", fontWeight: "bold" }}>
+      🎉 Se han sumado puntos a tu cuenta.
+    </Typography>
   </DialogContent>
-  
 </Dialog>
+
 
 
 
