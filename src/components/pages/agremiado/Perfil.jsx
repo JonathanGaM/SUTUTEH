@@ -41,6 +41,7 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { useNavigate } from 'react-router-dom';
 import { API_URL } from "../../../config/apiConfig";
 import PuntosDialog from "./PuntosDialog"; // al inicio del archivo
+import LogrosDialog from "./LogrosDialog";
 import confetti from "canvas-confetti"; // ⬅️ agrégalo arriba del archivo (solo una vez)
 
 
@@ -468,8 +469,17 @@ if (!userData) {
             <Typography variant="h6" sx={{ mt: 1 }}>
               {`${userData.nombre} ${userData.apellido_paterno} ${userData.apellido_materno}`}
             </Typography>
+           {/* Box contenedor para poner los diálogos en línea horizontal */}
+          <Box sx={{ 
+            display: "flex", 
+            gap: 2,  // Espacio entre los dos componentes
+            mt: 2,   // Margen superior
+            justifyContent: "center",  // Centra los elementos
+            flexWrap: "wrap"  // Por si en pantallas muy pequeñas necesita hacer wrap
+          }}>
             <PuntosDialog userId={userData.id} />
-
+            <LogrosDialog userId={userData.id} />
+          </Box>
 
             {/* Si se seleccionó una nueva foto, mostrar botones "Guardar" (verde) y "Cancelar" */}
             {preview && (
