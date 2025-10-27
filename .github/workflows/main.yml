@@ -60,8 +60,9 @@ jobs:
         ls -lh build/static/js/*.js 2>/dev/null | head -5 || echo "No hay archivos JS"
         ls -lh build/static/css/*.css 2>/dev/null | head -5 || echo "No hay archivos CSS"
     
-    - name:  Subir artefactos de build
-      uses: actions/upload-artifact@v3
+    
+    - name: 💾 Subir artefactos de build
+      uses: actions/upload-artifact@v4
       with:
         name: build-production
         path: build/
