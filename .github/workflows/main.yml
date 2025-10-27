@@ -69,9 +69,12 @@ jobs:
         retention-days: 7
     
    # ========== DEPLOY ==========
-    - name: Preparar despliegue
+    - name: Deploy a Hostinger via FTP
       if: github.ref == 'refs/heads/master' && github.event_name == 'push'
-      run: |
-        echo "Build generado correctamente"
-        echo "Archivos listos para despliegue"
-        echo "Componentes de gamificacion incluidos"
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./build/
+        server-dir: /public_html/
