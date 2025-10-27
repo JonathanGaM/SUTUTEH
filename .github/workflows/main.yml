@@ -69,7 +69,7 @@ jobs:
         retention-days: 7
     
    # ========== DEPLOY ==========
-    - name: Deploy a Hostinger via FTP
+   - name: Deploy a Hostinger via FTP
       if: github.ref == 'refs/heads/master' && github.event_name == 'push'
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
@@ -78,3 +78,4 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./build/
         server-dir: /public_html/
+        dangerous-clean-slate: true
