@@ -39,7 +39,7 @@ jobs:
       env:
         CI: true
     
-    - name: 🎮 Verificar componentes de gamificación
+    - name:  Verificar componentes de gamificación
       run: |
         echo " Verificando componentes del módulo:"
         test -f src/components/pages/agremiado/PuntosDialog.jsx && echo "✅ PuntosDialog.jsx" || echo "⚠️ PuntosDialog.jsx no encontrado"
@@ -47,12 +47,12 @@ jobs:
         test -f src/components/pages/agremiado/Perfil.jsx && echo "✅ Perfil.jsx" || echo "⚠️ Perfil.jsx no encontrado"
     
     # ========== BUILD ==========
-    - name: 🏗️ Generar build de producción
+    - name:  Generar build de producción
       run: npm run build
       env:
         CI: false
     
-    - name: 📦 Verificar tamaño del build
+    - name:  Verificar tamaño del build
       run: |
         echo " Información del build:"
         du -sh build/
@@ -61,7 +61,7 @@ jobs:
         ls -lh build/static/css/*.css 2>/dev/null | head -5 || echo "No hay archivos CSS"
     
     
-    - name: 💾 Subir artefactos de build
+    - name:  Subir artefactos de build
       uses: actions/upload-artifact@v4
       with:
         name: build-production
