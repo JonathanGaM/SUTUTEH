@@ -68,8 +68,10 @@ jobs:
         path: build/
         retention-days: 7
     
-    # ========== DEPLOY ==========
-    - name:  Preparar despliegue
+   # ========== DEPLOY ==========
+    - name: Preparar despliegue
       if: github.ref == 'refs/heads/master' && github.event_name == 'push'
       run: |
-        echo " Build gen
+        echo "Build generado correctamente"
+        echo "Archivos listos para despliegue"
+        echo "Componentes de gamificacion incluidos"
