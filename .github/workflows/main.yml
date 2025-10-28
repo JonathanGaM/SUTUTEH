@@ -96,8 +96,8 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./build/
-        server-dir: /home/u806281585/dominios/sututeh.com/public_html/
-        dangerous-clean-slate: true
+        server-dir: /public_html/
+        dangerous-clean-slate: false
         timeout: 300000
     
     - name: Deployment summary
