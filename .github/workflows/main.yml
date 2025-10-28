@@ -99,7 +99,6 @@ jobs:
             **/.git*
             **/.git*/**
             **/node_modules/**
-            .htaccess
             portal/**
       
       - name: Resumen de deploy
