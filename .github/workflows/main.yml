@@ -93,17 +93,19 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./build/
           server-dir: ./
-          dangerous-clean-slate: true
+          dangerous-clean-slate: false
           log-level: verbose
           exclude: |
             **/.git*
             **/.git*/**
             **/node_modules/**
+            .htaccess
+            portal/**
       
       - name: Resumen de deploy
         run: |
           echo "================================"
-          echo " Deploy completado exitosamente"
-          echo " Sitio: https://sututeh.com"
-          echo " Commit: ${{ github.sha }}"
+          echo "✅ Deploy completado"
+          echo "🌐 https://sututeh.com"
+          echo "📝 Commit: ${{ github.sha }}"
           echo "================================"
