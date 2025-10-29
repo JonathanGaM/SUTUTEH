@@ -11,7 +11,6 @@ import AdminRoutes from "../routes/AdminRoutes";
 
 import Footer from "./Footer";
 import Error404 from "../ERROR/Error404";
-import logo from "../img/logo1.jpeg";
 
 import { Box } from "@mui/material";
 import axios from "axios"; // LÍNEA AGREGADA
@@ -19,7 +18,6 @@ import { API_URL } from "../../config/apiConfig"; // LÍNEA AGREGADA
 
 function Layout() {
   const location = useLocation();
-  const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState(null); // LÍNEA AGREGADA
   const [authChecked, setAuthChecked] = useState(false); // LÍNEA AGREGADA
   // FUNCIÓN MODIFICADA - Solo verificar si NO estamos en rutas públicas
@@ -64,75 +62,7 @@ function Layout() {
     checkAuth();
   }, [location.pathname]); // ← CLAVE: Verificar cuando cambie la ruta
 
-  // Splash screen solo al recargar la página
-  useEffect(() => {
-    let isReload = false;
-    if (window.performance && window.performance.navigation) {
-      isReload = window.performance.navigation.type === 1;
-    } else {
-      const navEntries = window.performance.getEntriesByType("navigation");
-      if (navEntries.length > 0) {
-        isReload = navEntries[0].type === "reload";
-      }
-    }
 
-    if (isReload) {
-      const timer = setTimeout(() => setLoading(false), 3000);
-      return () => clearTimeout(timer);
-    } else {
-      setLoading(false);
-    }
-  }, []);
-
-  if (loading) {
-    return (
-      <Box
-        sx={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
-          height: "100vh",
-          backgroundColor: "white",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 9999,
-        }}
-      >
-        {/* Splash con logo y spinner */}
-        <Box sx={{ position: "relative", width: "150px", height: "150px" }}>
-          <Box
-            component="img"
-            src={logo}
-            alt="Logo"
-            sx={{
-              width: "100%",
-              height: "100%",
-              borderRadius: "50%",
-              position: "absolute",
-              top: 0,
-              left: 0,
-            }}
-          />
-          <Box
-            sx={{
-              position: "absolute",
-              top: "-10px",
-              left: "-10px",
-              width: "160px",
-              height: "160px",
-              border: "5px solid transparent",
-              borderTopColor: "green",
-              borderRightColor: "green",
-              borderRadius: "90%",
-              animation: "spin 2s linear infinite",
-            }}
-          />
-        </Box>
-      </Box>
-    );
-  }
 
   // Rutas para cada tipo de usuario
   const agremiadosPaths = [

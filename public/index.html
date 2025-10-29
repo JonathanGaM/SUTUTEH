@@ -5,23 +5,125 @@
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#2E7D32" />
-    <meta name="description" content="Portal oficial del SUTUTEH - Sindicato Único de Trabajadores de la Universidad Tecnológica de Tula-Tepeji" />
+    <meta name="description" content="Portal oficial del SUTUTEH" />
     
-    <!-- Apple Touch Icon -->
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/apple-touch-icon.png" />
-    
-    <!-- Manifest -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     
-    <!-- iOS Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="SUTUTEH" />
     
     <title>SUTUTEH - Portal Oficial</title>
+    
+    <!-- Estilos del Splash Screen PWA (idéntico al Layout) -->
+    <style>
+      /* Splash Screen */
+      #pwa-splash-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background-color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+      }
+      
+      #pwa-splash-screen.hidden {
+        opacity: 0;
+        transition: opacity 0.5s ease-out;
+        pointer-events: none;
+      }
+      
+      .splash-logo-wrapper {
+        position: relative;
+        width: 150px;
+        height: 150px;
+      }
+      
+      .splash-logo-image {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+      
+      .splash-spinner {
+        position: absolute;
+        top: -10px;
+        left: -10px;
+        width: 160px;
+        height: 160px;
+        border: 5px solid transparent;
+        border-top-color: green;
+        border-right-color: green;
+        border-radius: 90%;
+        animation: spin 2s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
   </head>
   <body>
     <noscript>Necesitas habilitar JavaScript para ejecutar esta aplicación.</noscript>
+    
+    <!-- Splash Screen PWA (idéntico al Layout.jsx) -->
+    <div id="pwa-splash-screen">
+      <div class="splash-logo-wrapper">
+        <img 
+          src="%PUBLIC_URL%/logo11.png" 
+          alt="Logo SUTUTEH" 
+          class="splash-logo-image"
+        />
+        <div class="splash-spinner"></div>
+      </div>
+    </div>
+    
+    <!-- Root de React -->
     <div id="root"></div>
+    
+    <!-- Script para ocultar el splash cuando React esté listo -->
+    <script>
+      window.addEventListener('load', function() {
+        const checkReactReady = setInterval(function() {
+          const root = document.getElementById('root');
+          if (root && root.children.length > 0) {
+            clearInterval(checkReactReady);
+            
+            setTimeout(function() {
+              const splash = document.getElementById('pwa-splash-screen');
+              if (splash) {
+                splash.classList.add('hidden');
+                setTimeout(function() {
+                  splash.remove();
+                }, 500);
+              }
+            }, 800);
+          }
+        }, 50);
+        
+        setTimeout(function() {
+          const splash = document.getElementById('pwa-splash-screen');
+          if (splash) {
+            splash.classList.add('hidden');
+            setTimeout(function() {
+              splash.remove();
+            }, 500);
+          }
+        }, 5000);
+      });
+    </script>
   </body>
 </html>
