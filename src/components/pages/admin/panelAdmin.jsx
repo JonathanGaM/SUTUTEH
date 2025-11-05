@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
   Typography,
-  Paper,
   Table,
   TableBody,
   TableCell,
@@ -15,30 +14,40 @@ import {
   TableRow,
   Button,
   LinearProgress,
-  Avatar,
   Chip,
-  CircularProgress
+  CircularProgress,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import {
   TrendingUp,
   TrendingDown,
-  People,
+  Groups,
+  EventAvailable,
   HowToVote,
-  AttachMoney,
   QuestionAnswer,
   Visibility,
-  MoreVert,
-  EventAvailable,
-  CardGiftcard,
-  Groups,
-  Business
+  Download
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { API_URL } from "../../../config/apiConfig";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const PanelAdmin = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  
+  // Estados para filtros
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+  const [añoParticipacion, setAñoParticipacion] = useState(currentYear);
+  const [añoEstado, setAñoEstado] = useState(currentYear);
+  const [añoActividades, setAñoActividades] = useState(currentYear);
+  const [mesActividades, setMesActividades] = useState(currentMonth);
+
+  // Estados para datos
   const [stats, setStats] = useState({
     totalAgremiados: { value: 0, change: 0, period: 'Cargando...' },
     reunionesActivas: { value: 0, change: 0, period: 'Cargando...' },
@@ -47,236 +56,185 @@ const PanelAdmin = () => {
     preguntasPendientes: { value: 0, change: 0, period: 'Cargando...' }
   });
 
-  // Estados para datos reales
-  const [recentActivity, setRecentActivity] = useState([]);
-  const [reuniones, setReuniones] = useState([]);
-  const [encuestas, setEncuestas] = useState([]);
-  const [preguntas, setPreguntas] = useState([]);
-  const [rifas, setRifas] = useState([]);
-  const [empresa, setEmpresa] = useState(null); // Estado para datos de la empresa
+  const [participacionData, setParticipacionData] = useState([]);
+  const [estadoActividades, setEstadoActividades] = useState([]);
+  const [actividadesRecientes, setActividadesRecientes] = useState([]);
+  const [empresa, setEmpresa] = useState(null);
 
-  // Cargar datos del dashboard
+  // Cargar estadísticas generales (cards superiores) - una sola vez al inicio
   useEffect(() => {
-    const loadDashboardData = async () => {
-      try {
-        setLoading(true);
-        
-        // Cargar datos de diferentes endpoints en paralelo
-        const [
-          reunionesRes,
-          encuestasRes,
-          preguntasRes,
-          rifasRes,
-          agremiadosRes,
-          empresaRes
-        ] = await Promise.all([
-          fetch(`${API_URL}/api/reuniones`),
-          fetch(`${API_URL}/api/encuestas-votaciones`),
-          fetch(`${API_URL}/api/preguntas`),
-          fetch(`${API_URL}/api/rifas`),
-          fetch(`${API_URL}/api/puestos/estadisticas/agremiados`),
-          fetch(`${API_URL}/api/datos-empresa`)
-        ]);
-
-        const reunionesData = await reunionesRes.json();
-        const encuestasData = await encuestasRes.json();
-        const preguntasData = await preguntasRes.json();
-        const rifasData = await rifasRes.json();
-        const agremiadosData = await agremiadosRes.json();
-        const empresaData = await empresaRes.json();
-
-        // Procesar datos
-        setReuniones(reunionesData);
-        setEncuestas(encuestasData);
-        setPreguntas(preguntasData);
-        setRifas(rifasData.success ? rifasData.data : []);
-        setEmpresa(empresaData[0] || null); // Tomar el primer registro de empresa
-
-        // Calcular estadísticas REALES usando la misma lógica que admin_encuestas
-        const reunionesActivas = reunionesData.filter(r => r.status === 'Programada' || r.status === 'En Curso').length;
-        
-        // Filtrar encuestas activas (estado 'Activo' y tipo 'Encuesta')
-        const encuestasActivas = encuestasData.filter(e => 
-          e.estado === 'Activo' && e.type === 'Encuesta'
-        ).length;
-        
-        // Para votaciones activas: usar todas las encuestas/votaciones activas 
-        // ya que ambas están en la misma tabla
-        const votacionesActivas = encuestasData.filter(e => 
-          e.estado === 'Activo' && e.type === 'Votación'
-        ).length;
-        
-        // Si no hay votaciones específicas, usar el total de activas
-        const totalEncuestasVotacionesActivas = encuestasData.filter(e => 
-          e.estado === 'Activo'
-        ).length;
-        
-        const preguntasPendientes = preguntasData.filter(p => p.estado === 'pendiente').length;
-
-        // Usar datos reales de agremiados desde la nueva API
-        const totalAgremiados = agremiadosData.total_agremiados || 0;
-
-        // Debug: mostrar conteos en consola
-        console.log('📊 Estadísticas Dashboard:', {
-          totalEncuestas: encuestasData.length,
-          encuestasActivas,
-          votacionesActivas,
-          totalEncuestasVotacionesActivas,
-          encuestasPorEstado: encuestasData.reduce((acc, e) => {
-            acc[e.estado] = (acc[e.estado] || 0) + 1;
-            return acc;
-          }, {}),
-          encuestasPorTipo: encuestasData.reduce((acc, e) => {
-            acc[e.type] = (acc[e.type] || 0) + 1;
-            return acc;
-          }, {})
-        });
-
-        setStats({
-          totalAgremiados: { 
-            value: totalAgremiados, 
-            change: totalAgremiados > 0 ? 5.2 : 0, 
-            period: totalAgremiados > 0 ? 'Desde el mes pasado' : 'Sin datos disponibles' 
-          },
-          reunionesActivas: { 
-            value: reunionesActivas, 
-            change: reunionesActivas > 0 ? 14.3 : 0, 
-            period: 'Desde la semana pasada' 
-          },
-          encuestasActivas: { 
-            value: encuestasActivas, 
-            change: encuestasActivas > 0 ? -8.1 : 0, 
-            period: 'Desde el mes pasado' 
-          },
-          votacionesActivas: { 
-            // Usar votaciones específicas o total de activas si no hay votaciones
-            value: votacionesActivas > 0 ? votacionesActivas : totalEncuestasVotacionesActivas, 
-            change: totalEncuestasVotacionesActivas > 0 ? 6.7 : 0, 
-            period: 'Desde la semana pasada' 
-          },
-          preguntasPendientes: { 
-            value: preguntasPendientes, 
-            change: preguntasPendientes > 0 ? -12.5 : 0, 
-            period: 'Desde ayer' 
-          }
-        });
-
-        // Generar actividades recientes reales
-        const activities = generateRecentActivities(reunionesData, encuestasData, rifasData.success ? rifasData.data : []);
-        setRecentActivity(activities);
-
-      } catch (error) {
-        console.error('Error cargando datos del dashboard:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadDashboardData();
+    loadEstadisticasGenerales();
+    loadEmpresa();
   }, []);
 
-  // Función para generar actividades recientes basadas en datos reales
-  const generateRecentActivities = (reuniones, encuestas, rifas) => {
-    const activities = [];
+  // Cargar participación mensual SOLO cuando cambia el año (NO al inicio)
+  useEffect(() => {
+    if (!loading) {
+      loadParticipacionMensual();
+    }
+  }, [añoParticipacion]);
 
-    // Agregar reuniones recientes
-    reuniones.slice(0, 2).forEach(reunion => {
-      activities.push({
-        id: `REU-${reunion.id}`,
-        member: 'Comité Ejecutivo',
-        item: reunion.title,
-        status: reunion.status === 'Programada' ? 'Programada' : reunion.status,
-        date: new Date(reunion.date).toLocaleDateString('es-ES'),
-        type: 'reunion'
-      });
-    });
+  // Cargar estado de actividades SOLO cuando cambia el año (NO al inicio)
+  useEffect(() => {
+    if (!loading) {
+      loadEstadoActividades();
+    }
+  }, [añoEstado]);
 
-    // Agregar encuestas recientes
-    encuestas.slice(0, 2).forEach(encuesta => {
-      activities.push({
-        id: `ENC-${encuesta.id}`,
-        member: 'Secretaría General',
-        item: encuesta.title,
-        status: encuesta.estado,
-        date: new Date(encuesta.publicationDate).toLocaleDateString('es-ES'),
-        type: 'encuesta'
-      });
-    });
+  // Cargar actividades recientes SOLO cuando cambia año o mes (NO al inicio)
+  useEffect(() => {
+    if (!loading) {
+      loadActividadesRecientes();
+    }
+  }, [añoActividades, mesActividades]);
 
-    // Agregar rifas recientes
-    rifas.slice(0, 1).forEach(rifa => {
-      activities.push({
-        id: `RIF-${rifa.id}`,
-        member: 'Comité Social',
-        item: rifa.titulo,
-        status: 'En Proceso',
-        date: new Date(rifa.fecha).toLocaleDateString('es-ES'),
-        type: 'rifa'
-      });
-    });
+  const loadEstadisticasGenerales = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/api/dashboard/estadisticas-generales`);
+      const result = await response.json();
 
-    return activities.slice(0, 5); // Limitar a 5 actividades
+      if (result.success) {
+        setStats({
+          totalAgremiados: {
+            value: result.data.totalAgremiados,
+            change: 5.2,
+            period: 'Desde el mes pasado'
+          },
+          reunionesActivas: {
+            value: result.data.reunionesActivas,
+            change: 14.3,
+            period: 'Desde la semana pasada'
+          },
+          encuestasActivas: {
+            value: result.data.encuestasActivas,
+            change: -8.1,
+            period: 'Desde el mes pasado'
+          },
+          votacionesActivas: {
+            value: result.data.votacionesActivas,
+            change: 6.7,
+            period: 'Desde la semana pasada'
+          },
+          preguntasPendientes: {
+            value: result.data.preguntasPendientes,
+            change: -12.5,
+            period: 'Desde ayer'
+          }
+        });
+      }
+
+      // Cargar también los datos iniciales de gráficas
+      await Promise.all([
+        loadParticipacionMensual(),
+        loadEstadoActividades(),
+        loadActividadesRecientes()
+      ]);
+
+    } catch (error) {
+      console.error('Error al cargar estadísticas generales:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Datos para el gráfico (simulado por ahora)
-  const [monthlyData] = useState([
-    { month: 'Ene', value: 45 },
-    { month: 'Feb', value: 52 },
-    { month: 'Mar', value: 48 },
-    { month: 'Abr', value: 61 },
-    { month: 'May', value: 55 },
-    { month: 'Jun', value: 67 },
-    { month: 'Jul', value: 72 },
-    { month: 'Ago', value: 69 },
-    { month: 'Sep', value: 75 },
-    { month: 'Oct', value: 78 },
-    { month: 'Nov', value: 82 },
-    { month: 'Dic', value: 85 }
-  ]);
+  const loadParticipacionMensual = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/dashboard/participacion-mensual?año=${añoParticipacion}`);
+      const result = await response.json();
 
-  // Calcular progreso de actividades basado en datos reales
- const calculateActivities = () => {
-  if (loading) return [];
-
-  // ✅ Validar que todos los arrays sean arrays antes de usar .filter()
-  const reunionesArray = Array.isArray(reuniones) ? reuniones : [];
-  const encuestasArray = Array.isArray(encuestas) ? encuestas : [];
-  const preguntasArray = Array.isArray(preguntas) ? preguntas : [];
-  const rifasArray = Array.isArray(rifas) ? rifas : [];
-
-  return [
-    { 
-      name: 'Reuniones Ordinarias', 
-      completed: reunionesArray.filter(r => r.status === 'Terminada').length, 
-      total: reunionesArray.length, 
-      color: '#2196f3' 
-    },
-    { 
-      name: 'Encuestas Sindicales', 
-      completed: encuestasArray.filter(e => e.estado === 'Cerrado').length, 
-      total: encuestasArray.length, 
-      color: '#4caf50' 
-    },
-    { 
-      name: 'Votaciones Activas', 
-      completed: encuestasArray.filter(e => e.type === 'Votación' && e.estado === 'Activo').length, 
-      total: encuestasArray.filter(e => e.type === 'Votación').length, 
-      color: '#ff9800' 
-    },
-    { 
-      name: 'Rifas Benéficas', 
-      completed: rifasArray.length, 
-      total: rifasArray.length + 2, 
-      color: '#9c27b0' 
-    },
-    { 
-      name: 'Preguntas Respondidas', 
-      completed: preguntasArray.filter(p => p.estado === 'respondido').length, 
-      total: preguntasArray.length, 
-      color: '#f44336' 
+      if (result.success) {
+        // Transformar datos para Recharts
+        const chartData = result.data.map(item => ({
+          name: item.nombre_mes.substring(0, 3), // Abreviatura del mes
+          porcentaje: item.porcentaje,
+          participaciones: item.participaciones_unicas
+        }));
+        setParticipacionData(chartData);
+      }
+    } catch (error) {
+      console.error('Error al cargar participación mensual:', error);
     }
-  ];
-};
+  };
+
+  const loadEstadoActividades = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/dashboard/estado-actividades?año=${añoEstado}`);
+      const result = await response.json();
+
+      if (result.success) {
+        setEstadoActividades(result.data);
+      }
+    } catch (error) {
+      console.error('Error al cargar estado de actividades:', error);
+    }
+  };
+
+  const loadActividadesRecientes = async () => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/dashboard/actividades-recientes?año=${añoActividades}&mes=${mesActividades}&limite=50`
+      );
+      const result = await response.json();
+
+      if (result.success) {
+        setActividadesRecientes(result.data);
+      }
+    } catch (error) {
+      console.error('Error al cargar actividades recientes:', error);
+    }
+  };
+
+  const loadEmpresa = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/datos-empresa`);
+      const empresaData = await response.json();
+      setEmpresa(empresaData[0] || null);
+    } catch (error) {
+      console.error('Error al cargar datos de empresa:', error);
+    }
+  };
+
+  // Función para exportar CSV
+  const exportarCSV = async (tipo) => {
+    try {
+      let url = `${API_URL}/api/dashboard/exportar-csv?tipo=${tipo}`;
+      
+      switch (tipo) {
+        case 'participacion':
+          url += `&año=${añoParticipacion}`;
+          break;
+        case 'estado':
+          url += `&año=${añoEstado}`;
+          break;
+        case 'actividades':
+          url += `&año=${añoActividades}&mes=${mesActividades}`;
+          break;
+      }
+
+      // Descargar el archivo
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      
+      // Obtener nombre de archivo del header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filename = contentDisposition
+        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+        : `reporte_${tipo}.csv`;
+      
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error('Error al exportar CSV:', error);
+      alert('Error al exportar el reporte');
+    }
+  };
 
   const StatCard = ({ title, value, change, period, icon, color }) => (
     <Card sx={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
@@ -287,7 +245,7 @@ const PanelAdmin = () => {
               {title}
             </Typography>
             <Typography variant="h4" component="div" fontWeight="bold">
-              {loading ? <CircularProgress size={24} /> : (typeof value === 'number' ? value.toLocaleString() : value)}
+              {loading ? <CircularProgress size={24} /> : value.toLocaleString()}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
               {!loading && (
@@ -297,8 +255,8 @@ const PanelAdmin = () => {
                   ) : (
                     <TrendingDown sx={{ color: 'error.main', fontSize: 16, mr: 0.5 }} />
                   )}
-                  <Typography 
-                    variant="body2" 
+                  <Typography
+                    variant="body2"
                     color={change > 0 ? 'success.main' : 'error.main'}
                     sx={{ mr: 0.5 }}
                   >
@@ -331,26 +289,39 @@ const PanelAdmin = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'Activo':
-      case 'Programada': return 'success';
-      case 'En Proceso': return 'warning';
+      case 'Programada':
+      case 'En Curso':
+        return 'success';
+      case 'En Proceso':
+        return 'warning';
       case 'Cerrada':
-      case 'Cerrado': return 'info';
-      case 'Pendiente': return 'error';
-      case 'Terminada': return 'default';
-      default: return 'default';
+      case 'Cerrado':
+      case 'Terminada':
+        return 'info';
+      case 'Pendiente':
+      case 'pendiente':
+        return 'error';
+      case 'Programado':
+        return 'default';
+      default:
+        return 'default';
     }
   };
 
   const handleViewActivity = (activity) => {
-    switch (activity.type) {
+    switch (activity.tipo) {
       case 'reunion':
         navigate('/admin_reuniones');
         break;
       case 'encuesta':
+      case 'votación':
         navigate('/admin_encuestas');
         break;
       case 'rifa':
         navigate('/admin_rifas');
+        break;
+      case 'pregunta':
+        navigate('/admin_preguntas');
         break;
       default:
         break;
@@ -376,10 +347,9 @@ const PanelAdmin = () => {
           {empresa ? `Panel Administrativo ${empresa.titulo_empresa || empresa.nombre_empresa}` : 'Panel Administrativo'}
         </Typography>
         <Typography variant="body1" color="textSecondary">
-          {empresa ? 
-            `Sistema de gestión sindical - ${empresa.titulo_empresa || empresa.nombre_empresa}` : 
-            'Sistema de gestión sindical'
-          }
+          {empresa
+            ? `Sistema de gestión sindical - ${empresa.titulo_empresa || empresa.nombre_empresa}`
+            : 'Sistema de gestión sindical'}
         </Typography>
       </Box>
 
@@ -439,7 +409,7 @@ const PanelAdmin = () => {
 
       {/* Charts Row */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        {/* Monthly Activity Chart */}
+        {/* Monthly Activity Chart con RECHARTS */}
         <Grid item xs={12} md={8}>
           <Card>
             <CardContent>
@@ -447,81 +417,54 @@ const PanelAdmin = () => {
                 <Typography variant="h6" fontWeight="bold">
                   Participación Mensual en Actividades Sindicales
                 </Typography>
-                <Button size="small" startIcon={<MoreVert />}>
-                  Opciones
-                </Button>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  {/* Botón Exportar CSV */}
+                  <Button
+                    size="small"
+                    startIcon={<Download />}
+                    onClick={() => exportarCSV('participacion')}
+                    variant="outlined"
+                  >
+                    Exportar
+                  </Button>
+                  {/* Filtro de Año */}
+                  <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <InputLabel>Año</InputLabel>
+                    <Select
+                      value={añoParticipacion}
+                      label="Año"
+                      onChange={(e) => setAñoParticipacion(e.target.value)}
+                    >
+                      {[2023, 2024, 2025, 2026].map(year => (
+                        <MenuItem key={year} value={year}>{year}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
               </Box>
-              
-              {/* Simulación de gráfico con barras */}
-              <Box sx={{ height: 300, position: 'relative' }}>
-                {monthlyData.map((item, index) => (
-                  <Box
-                    key={item.month}
-                    sx={{
-                      position: 'absolute',
-                      bottom: 40,
-                      left: `${(index * 8) + 2}%`,
-                      width: '6%',
-                      height: `${(item.value / 85) * 200}px`,
-                      backgroundColor: '#2196f3',
-                      borderRadius: '4px 4px 0 0',
-                      opacity: 0.8,
-                      transition: 'opacity 0.3s',
-                      '&:hover': { opacity: 1 }
+
+              {/* Gráfica con Recharts */}
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={participacionData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis label={{ value: 'Porcentaje %', angle: -90, position: 'insideLeft' }} />
+                  <Tooltip
+                    formatter={(value, name) => {
+                      if (name === 'porcentaje') return [`${value.toFixed(1)}%`, 'Participación'];
+                      if (name === 'participaciones') return [value, 'Usuarios únicos'];
+                      return value;
                     }}
                   />
-                ))}
-                
-                {/* Etiquetas del eje X */}
-                {monthlyData.map((item, index) => (
-                  <Typography
-                    key={`label-${item.month}`}
-                    variant="caption"
-                    sx={{
-                      position: 'absolute',
-                      bottom: 20,
-                      left: `${(index * 8) + 2}%`,
-                      fontSize: '0.7rem',
-                      color: 'textSecondary'
-                    }}
-                  >
-                    {item.month}
-                  </Typography>
-                ))}
-                
-                {/* Líneas de referencia */}
-                {[0, 20, 40, 60, 80].map((value, index) => (
-                  <Box key={value}>
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        left: 0,
-                        right: 0,
-                        bottom: 40 + (index * 50),
-                        height: '1px',
-                        backgroundColor: '#e0e0e0'
-                      }}
-                    />
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        position: 'absolute',
-                        left: -25,
-                        bottom: 35 + (index * 50),
-                        fontSize: '0.7rem',
-                        color: 'textSecondary'
-                      }}
-                    >
-                      {value}%
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
+                  <Legend />
+                  <Bar dataKey="porcentaje" fill="#2196f3" name="Participación %" />
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </Grid>
 
-        {/* Activities Status */}
+        {/* Activities Status - SIN botón "Ver Estadísticas" */}
         <Grid item xs={12} md={4}>
           <Card>
             <CardContent>
@@ -529,24 +472,44 @@ const PanelAdmin = () => {
                 <Typography variant="h6" fontWeight="bold">
                   Estado de Actividades
                 </Typography>
-                <Button variant="outlined" size="small">
-                  2025
-                </Button>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  {/* Botón Exportar CSV */}
+                  <Button
+                    size="small"
+                    startIcon={<Download />}
+                    onClick={() => exportarCSV('estado')}
+                    variant="outlined"
+                  >
+                    Exportar
+                  </Button>
+                  {/* Filtro de Año */}
+                  <FormControl size="small" sx={{ minWidth: 100 }}>
+                    <Select
+                      value={añoEstado}
+                      onChange={(e) => setAñoEstado(e.target.value)}
+                      displayEmpty
+                    >
+                      {[2023, 2024, 2025, 2026].map(year => (
+                        <MenuItem key={year} value={year}>{year}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
               </Box>
-              
-              {calculateActivities().map((actividad, index) => (
+
+              {estadoActividades.map((actividad, index) => (
                 <Box key={index} sx={{ mb: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                     <Typography variant="body2">
-                      {actividad.name}
+                      {actividad.nombre}
                     </Typography>
                     <Typography variant="body2" color="textSecondary">
-                      {actividad.completed} de {actividad.total}
+                      {actividad.completadas} de {actividad.total}
                     </Typography>
                   </Box>
                   <LinearProgress
                     variant="determinate"
-                    value={actividad.total > 0 ? (actividad.completed / actividad.total) * 100 : 0}
+                    value={actividad.total > 0 ? (actividad.completadas / actividad.total) * 100 : 0}
                     sx={{
                       height: 8,
                       borderRadius: 4,
@@ -559,12 +522,6 @@ const PanelAdmin = () => {
                   />
                 </Box>
               ))}
-              
-              <Box sx={{ textAlign: 'center', mt: 3 }}>
-                <Button variant="text" color="primary">
-                  Ver Estadísticas →
-                </Button>
-              </Box>
             </CardContent>
           </Card>
         </Grid>
@@ -572,24 +529,71 @@ const PanelAdmin = () => {
 
       {/* Bottom Row */}
       <Grid container spacing={3}>
-        {/* Recent Activity Table */}
+        {/* Recent Activity Table - CON SCROLL y filtros año/mes */}
         <Grid item xs={12} md={8}>
           <Card>
             <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h6" fontWeight="bold">
                   Actividades Recientes del Sindicato
                 </Typography>
-                <Button variant="contained" color="primary" size="small">
-                  Ver Todas →
-                </Button>
+                {/* Botón Exportar y Filtros de Año y Mes */}
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    size="small"
+                    startIcon={<Download />}
+                    onClick={() => exportarCSV('actividades')}
+                    variant="outlined"
+                  >
+                    Exportar
+                  </Button>
+                  <FormControl size="small" sx={{ minWidth: 100 }}>
+                    <InputLabel>Año</InputLabel>
+                    <Select
+                      value={añoActividades}
+                      label="Año"
+                      onChange={(e) => setAñoActividades(e.target.value)}
+                    >
+                      {[2023, 2024, 2025, 2026].map(year => (
+                        <MenuItem key={year} value={year}>{year}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <InputLabel>Mes</InputLabel>
+                    <Select
+                      value={mesActividades}
+                      label="Mes"
+                      onChange={(e) => setMesActividades(e.target.value)}
+                    >
+                      {[
+                        { value: 1, label: 'Enero' },
+                        { value: 2, label: 'Febrero' },
+                        { value: 3, label: 'Marzo' },
+                        { value: 4, label: 'Abril' },
+                        { value: 5, label: 'Mayo' },
+                        { value: 6, label: 'Junio' },
+                        { value: 7, label: 'Julio' },
+                        { value: 8, label: 'Agosto' },
+                        { value: 9, label: 'Septiembre' },
+                        { value: 10, label: 'Octubre' },
+                        { value: 11, label: 'Noviembre' },
+                        { value: 12, label: 'Diciembre' }
+                      ].map(mes => (
+                        <MenuItem key={mes.value} value={mes.value}>{mes.label}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
               </Box>
-              
-              <TableContainer>
-                <Table>
+
+              {/* Tabla con SCROLL interno */}
+              <TableContainer sx={{ maxHeight: 400 }}>
+                <Table stickyHeader>
                   <TableHead>
                     <TableRow>
                       <TableCell>ID</TableCell>
+                      <TableCell>Tipo</TableCell>
                       <TableCell>Responsable</TableCell>
                       <TableCell>Actividad</TableCell>
                       <TableCell>Estado</TableCell>
@@ -598,30 +602,48 @@ const PanelAdmin = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {recentActivity.map((activity) => (
-                      <TableRow key={activity.id} hover>
-                        <TableCell>{activity.id}</TableCell>
-                        <TableCell>{activity.member}</TableCell>
-                        <TableCell>{activity.item}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={activity.status}
-                            color={getStatusColor(activity.status)}
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell>{activity.date}</TableCell>
-                        <TableCell>
-                          <Button 
-                            size="small" 
-                            startIcon={<Visibility />}
-                            onClick={() => handleViewActivity(activity)}
-                          >
-                            Ver
-                          </Button>
+                    {actividadesRecientes.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center">
+                          No hay actividades para el período seleccionado
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      actividadesRecientes.map((activity) => (
+                        <TableRow key={activity.id} hover>
+                          <TableCell>{activity.id}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={activity.tipo}
+                              size="small"
+                              color="default"
+                              sx={{ textTransform: 'capitalize' }}
+                            />
+                          </TableCell>
+                          <TableCell>{activity.responsable}</TableCell>
+                          <TableCell sx={{ maxWidth: 250, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {activity.actividad}
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={activity.estado}
+                              color={getStatusColor(activity.estado)}
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell>{activity.fecha_formato}</TableCell>
+                          <TableCell>
+                            <Button
+                              size="small"
+                              startIcon={<Visibility />}
+                              onClick={() => handleViewActivity(activity)}
+                            >
+                              Ver
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -636,39 +658,39 @@ const PanelAdmin = () => {
               <Typography variant="h6" fontWeight="bold" gutterBottom>
                 Acciones Rápidas
               </Typography>
-              
+
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Button 
-                  variant="outlined" 
-                  startIcon={<EventAvailable />} 
-                  fullWidth 
+                <Button
+                  variant="outlined"
+                  startIcon={<EventAvailable />}
+                  fullWidth
                   size="small"
                   onClick={() => navigate('/admin_reuniones')}
                 >
                   Nueva Reunión
                 </Button>
-                <Button 
-                  variant="outlined" 
-                  startIcon={<HowToVote />} 
-                  fullWidth 
+                <Button
+                  variant="outlined"
+                  startIcon={<HowToVote />}
+                  fullWidth
                   size="small"
                   onClick={() => navigate('/admin_encuestas')}
                 >
                   Nueva Encuesta
                 </Button>
-                <Button 
-                  variant="outlined" 
-                  startIcon={<CardGiftcard />} 
-                  fullWidth 
+                <Button
+                  variant="outlined"
+                  startIcon={<HowToVote />}
+                  fullWidth
                   size="small"
                   onClick={() => navigate('/admin_rifas')}
                 >
                   Nueva Rifa
                 </Button>
-                <Button 
-                  variant="outlined" 
-                  startIcon={<QuestionAnswer />} 
-                  fullWidth 
+                <Button
+                  variant="outlined"
+                  startIcon={<QuestionAnswer />}
+                  fullWidth
                   size="small"
                   onClick={() => navigate('/admin_preguntas')}
                 >
