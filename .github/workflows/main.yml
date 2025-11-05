@@ -110,8 +110,8 @@ jobs:
           # Crear mensaje del tag con changelog
           TAG_MESSAGE="Release ${NEW_VERSION}
 
-Cambios en esta versión:
-${COMMITS}
+Cambios en esta version:
+$COMMITS
 
 Fecha: $(date +'%Y-%m-%d %H:%M:%S')
 Commit: ${{ github.sha }}"
