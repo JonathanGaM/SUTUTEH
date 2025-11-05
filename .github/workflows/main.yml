@@ -7,7 +7,7 @@ on:
     branches: ["master"]
 
 permissions:
-  contents: read
+  contents: write  # ← Cambiado de 'read' a 'write' para crear tags
 
 jobs:
   pruebas-unitarias:
@@ -47,10 +47,107 @@ jobs:
           test -f src/components/pages/agremiado/LogrosDialog.jsx && echo "LogrosDialog.jsx OK" || echo "LogrosDialog.jsx no encontrado"
           test -f src/components/pages/agremiado/Perfil.jsx && echo "Perfil.jsx OK" || echo "Perfil.jsx no encontrado"
 
+  versionado:
+    name: Versionado Automatico
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: [pruebas-unitarias, analisis-codigo]
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necesario para leer todos los tags
+      
+      - name: Obtener ultima version
+        id: get_version
+        run: |
+          # Obtener el último tag que comience con 'v'
+          LAST_TAG=$(git tag -l "v*" | sort -V | tail -n 1)
+          
+          if [ -z "$LAST_TAG" ]; then
+            echo "No hay versiones previas, iniciando en v0.1.0"
+            echo "last_version=v0.0.0" >> $GITHUB_OUTPUT
+          else
+            echo "Última versión encontrada: $LAST_TAG"
+            echo "last_version=$LAST_TAG" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Incrementar version
+        id: bump
+        run: |
+          LAST_VERSION="${{ steps.get_version.outputs.last_version }}"
+          
+          # Extraer números de la versión (v0.2.0 -> 0 2 0)
+          VERSION_NUMBER=$(echo $LAST_VERSION | sed 's/v//' | sed 's/\./ /g')
+          MAJOR=$(echo $VERSION_NUMBER | awk '{print $1}')
+          MINOR=$(echo $VERSION_NUMBER | awk '{print $2}')
+          PATCH=$(echo $VERSION_NUMBER | awk '{print $3}')
+          
+          # Incrementar versión MINOR (v0.1.0 -> v0.2.0 -> v0.3.0)
+          NEW_MINOR=$((MINOR + 1))
+          NEW_VERSION="v${MAJOR}.${NEW_MINOR}.0"
+          
+          echo "Nueva versión: $NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Crear tag de version
+        run: |
+          NEW_VERSION="${{ steps.bump.outputs.new_version }}"
+          
+          # Configurar git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Obtener lista de commits desde la última versión
+          LAST_TAG="${{ steps.get_version.outputs.last_version }}"
+          if [ "$LAST_TAG" = "v0.0.0" ]; then
+            COMMITS=$(git log --oneline --no-merges -10)
+          else
+            COMMITS=$(git log ${LAST_TAG}..HEAD --oneline --no-merges)
+          fi
+          
+          # Crear mensaje del tag con changelog
+          TAG_MESSAGE="Release ${NEW_VERSION}
+
+Cambios en esta versión:
+${COMMITS}
+
+Fecha: $(date +'%Y-%m-%d %H:%M:%S')
+Commit: ${{ github.sha }}"
+          
+          # Crear y pushear el tag
+          git tag -a "$NEW_VERSION" -m "$TAG_MESSAGE"
+          git push origin "$NEW_VERSION"
+          
+          echo "Tag $NEW_VERSION creado exitosamente"
+      
+      - name: Crear GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.bump.outputs.new_version }}
+          name: Release ${{ steps.bump.outputs.new_version }}
+          body: |
+            Nueva version ${{ steps.bump.outputs.new_version }}
+            
+            Cambios incluidos:
+            Revisa los commits para ver los cambios detallados.
+            
+            Enlaces:
+            - [Ver codigo fuente](https://github.com/${{ github.repository }}/tree/${{ steps.bump.outputs.new_version }})
+            - [Comparar cambios](https://github.com/${{ github.repository }}/compare/${{ steps.get_version.outputs.last_version }}...${{ steps.bump.outputs.new_version }})
+            
+            Fecha: ${{ github.event.head_commit.timestamp }}
+            Autor: ${{ github.event.head_commit.author.name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [pruebas-unitarias, analisis-codigo]
+    needs: [pruebas-unitarias, analisis-codigo, versionado]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -77,7 +174,7 @@ jobs:
     name: Deploy a Hostinger
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, versionado]
     steps:
       - name: Descargar artefactos del build
         uses: actions/download-artifact@v4
@@ -99,12 +196,14 @@ jobs:
             **/.git*
             **/.git*/**
             **/node_modules/**
+            **/.htaccess
             portal/**
       
       - name: Resumen de deploy
         run: |
           echo "================================"
-          echo "✅ Deploy completado"
-          echo "🌐 https://sututeh.com"
-          echo "📝 Commit: ${{ github.sha }}"
+          echo "Deploy completado"
+          echo "Version: ${{ needs.versionado.outputs.new_version }}"
+          echo "URL: https://sututeh.com"
+          echo "Commit: ${{ github.sha }}"
           echo "================================"
