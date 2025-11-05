@@ -7,7 +7,7 @@ on:
     branches: ["master"]
 
 permissions:
-  contents: write  # ← Cambiado de 'read' a 'write' para crear tags
+  contents: write
 
 jobs:
   pruebas-unitarias:
@@ -57,12 +57,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Necesario para leer todos los tags
+          fetch-depth: 0
       
       - name: Obtener ultima version
         id: get_version
         run: |
-          # Obtener el último tag que comience con 'v'
           LAST_TAG=$(git tag -l "v*" | sort -V | tail -n 1)
           
           if [ -z "$LAST_TAG" ]; then
@@ -78,13 +77,11 @@ jobs:
         run: |
           LAST_VERSION="${{ steps.get_version.outputs.last_version }}"
           
-          # Extraer números de la versión (v0.2.0 -> 0 2 0)
           VERSION_NUMBER=$(echo $LAST_VERSION | sed 's/v//' | sed 's/\./ /g')
           MAJOR=$(echo $VERSION_NUMBER | awk '{print $1}')
           MINOR=$(echo $VERSION_NUMBER | awk '{print $2}')
           PATCH=$(echo $VERSION_NUMBER | awk '{print $3}')
           
-          # Incrementar versión MINOR (v0.1.0 -> v0.2.0 -> v0.3.0)
           NEW_MINOR=$((MINOR + 1))
           NEW_VERSION="v${MAJOR}.${NEW_MINOR}.0"
           
@@ -95,11 +92,9 @@ jobs:
         run: |
           NEW_VERSION="${{ steps.bump.outputs.new_version }}"
           
-          # Configurar git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Obtener lista de commits desde la última versión
           LAST_TAG="${{ steps.get_version.outputs.last_version }}"
           if [ "$LAST_TAG" = "v0.0.0" ]; then
             COMMITS=$(git log --oneline --no-merges -10)
@@ -107,16 +102,14 @@ jobs:
             COMMITS=$(git log ${LAST_TAG}..HEAD --oneline --no-merges)
           fi
           
-          # Crear mensaje del tag con changelog
           TAG_MESSAGE="Release ${NEW_VERSION}
 
-Cambios en esta version:
-$COMMITS
+          Cambios en esta version:
+          $COMMITS
 
-Fecha: $(date +'%Y-%m-%d %H:%M:%S')
-Commit: ${{ github.sha }}"
+          Fecha: $(date +'%Y-%m-%d %H:%M:%S')
+          Commit: ${{ github.sha }}"
           
-          # Crear y pushear el tag
           git tag -a "$NEW_VERSION" -m "$TAG_MESSAGE"
           git push origin "$NEW_VERSION"
           
@@ -192,12 +185,12 @@ Commit: ${{ github.sha }}"
           server-dir: ./
           dangerous-clean-slate: true
           log-level: verbose
-          exclude:
-            - "**/.git*"
-            - "**/.git*/**"
-            - "**/node_modules/**"
-            - "**/.htaccess"
-            - "portal/**"
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.htaccess
+            portal/**
       
       - name: Resumen de deploy
         run: |
