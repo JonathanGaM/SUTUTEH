@@ -192,12 +192,12 @@ Commit: ${{ github.sha }}"
           server-dir: ./
           dangerous-clean-slate: true
           log-level: verbose
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/.htaccess
-            portal/**
+          exclude:
+            - "**/.git*"
+            - "**/.git*/**"
+            - "**/node_modules/**"
+            - "**/.htaccess"
+            - "portal/**"
       
       - name: Resumen de deploy
         run: |
