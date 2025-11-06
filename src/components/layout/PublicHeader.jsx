@@ -35,7 +35,7 @@ import { API_URL } from "../../config/apiConfig";
 // Datos de navegación
 const pages = [
   { label: "Inicio", path: "/", icon: <HomeIcon /> },
-  { label: "Huejutla hidalgo", path: "/quienes-somos", icon: <InfoIcon /> },
+  { label: "Quienes Somos", path: "/quienes-somos", icon: <InfoIcon /> },
   { label: "Noticias", path: "/noticias", icon: <ArticleIcon /> },
   { label: "Contacto", path: "/contacto", icon: <ContactsIcon /> }
 ];
