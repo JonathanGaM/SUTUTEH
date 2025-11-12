@@ -51,6 +51,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "build:pwa": "react-scripts build && node build-sw.js",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "dev:local": "echo 'Usando backend LOCAL...' && npm start",
@@ -80,6 +81,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "jest": "^27.5.1",
-    "sass": "^1.85.1"
+    "sass": "^1.85.1",
+    "workbox-build": "^7.3.0"
   }
 }
